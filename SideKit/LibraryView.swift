@@ -1,12 +1,15 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct LibraryView: View {
     @EnvironmentObject private var store: MixerStore
+    @State private var importing = false
 
     private var filtered: [Track] {
         let q = store.libraryFilter.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard !q.isEmpty else { return DemoLibrary.tracks }
-        return DemoLibrary.tracks.filter {
+        let all = store.libraryTracks
+        guard !q.isEmpty else { return all }
+        return all.filter {
             $0.title.lowercased().contains(q)
                 || $0.artist.lowercased().contains(q)
                 || $0.key.lowercased().contains(q)
@@ -15,9 +18,56 @@ struct LibraryView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Library")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(SKTheme.fg)
+            HStack {
+                Text("Library")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(SKTheme.fg)
+                Spacer()
+                Button {
+                    importing = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "square.and.arrow.down")
+                        Text(store.isDecoding ? "DECODING…" : "IMPORT")
+                    }
+                    .font(.system(size: 10, weight: .semibold))
+                    .tracking(0.6)
+                    .foregroundStyle(SKTheme.accentFg)
+                    .padding(.horizontal, 12)
+                    .frame(height: 32)
+                    .background(SKTheme.accent)
+                    .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .disabled(store.isDecoding)
+            }
+
+            if let banner = store.decodeBanner {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(SKTheme.warn)
+                    Text(banner)
+                        .font(.system(size: 12))
+                        .foregroundStyle(SKTheme.fg)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 4)
+                    Button("Dismiss") { store.dismissDecodeBanner() }
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(SKTheme.muted)
+                }
+                .padding(10)
+                .background(SKTheme.warn.opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: SKTheme.radiusMD, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: SKTheme.radiusMD, style: .continuous)
+                        .stroke(SKTheme.warn.opacity(0.35), lineWidth: 1)
+                )
+            }
+
+            Text("WAV, AIFF, MP3, AAC, M4A, ALAC. Non-48 kHz files resample on load.")
+                .font(.system(size: 11))
+                .foregroundStyle(SKTheme.subtle)
+                .fixedSize(horizontal: false, vertical: true)
 
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
@@ -50,7 +100,7 @@ struct LibraryView: View {
                         store.loadTrack(ch: store.loadTarget, id: track.id)
                     } label: {
                         HStack(spacing: 12) {
-                            Image(systemName: "opticaldisc")
+                            Image(systemName: track.isImported ? "waveform" : "opticaldisc")
                                 .font(.system(size: 18))
                                 .foregroundStyle(SKTheme.meter)
                                 .frame(width: 40, height: 40)
@@ -89,13 +139,33 @@ struct LibraryView: View {
                 }
             }
         }
+        .fileImporter(
+            isPresented: $importing,
+            allowedContentTypes: FileDecoder.importTypes,
+            allowsMultipleSelection: true
+        ) { result in
+            switch result {
+            case .success(let urls):
+                store.importURLs(urls)
+            case .failure(let error):
+                store.decodeBanner = error.localizedDescription
+            }
+        }
     }
 
     @ViewBuilder
     private func badge(_ track: Track) -> some View {
         let a = store.ch1.trackId == track.id
         let b = store.ch2.trackId == track.id
-        if a || b {
+        if track.resampled {
+            Text("48K")
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(SKTheme.warn)
+        } else if track.isImported {
+            Text("FILE")
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(SKTheme.ok)
+        } else if a || b {
             Text(a && b ? "A+B" : a ? "A" : "B")
                 .font(.system(size: 9, weight: .semibold))
                 .foregroundStyle(SKTheme.ok)

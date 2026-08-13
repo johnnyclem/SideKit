@@ -30,6 +30,9 @@ final class MixerStore: ObservableObject {
     @Published var meters: (ch1: Double, ch2: Double, master: Double) = (0, 0, 0)
     @Published var hardwareName: String?
     @Published var mixMode: MixMode = .internalMix
+    @Published var imported: [Track] = []
+    @Published var decodeBanner: String?
+    @Published var isDecoding = false
 
     enum MixMode: String, CaseIterable, Identifiable {
         case external = "External"
@@ -67,12 +70,22 @@ final class MixerStore: ObservableObject {
         link.add(to: .main, forMode: .common)
         displayLink = link
         bindAudio()
+        Task { await prepareClip(ch: 1) }
     }
 
     var displayBpm: Double {
         if ch1.playing { return ch1.effectiveBpm }
         if ch2.playing { return ch2.effectiveBpm }
         return masterBpm
+    }
+
+    var libraryTracks: [Track] {
+        imported + DemoLibrary.tracks
+    }
+
+    func track(id: String?) -> Track? {
+        guard let id else { return nil }
+        return imported.first { $0.id == id } ?? DemoLibrary.track(id: id)
     }
 
     func setEqStyle(_ style: EqStyle) {
@@ -87,14 +100,23 @@ final class MixerStore: ObservableObject {
         pushAudio()
     }
 
+    func seekDeck(_ ch: Int, _ pos: Double) {
+        let clamped = min(1, max(0, pos))
+        if ch == 1 { ch1.deckPos = clamped } else { ch2.deckPos = clamped }
+        audio.seekClip(ch: ch, normalized: clamped)
+    }
+
     func togglePlay(_ ch: Int) {
         if ch == 1 { ch1.playing.toggle() } else { ch2.playing.toggle() }
-        Task { await audio.unlock() }
-        pushAudio()
+        Task {
+            await audio.unlock()
+            await prepareClip(ch: ch)
+            pushAudio()
+        }
     }
 
     func loadTrack(ch: Int, id: String) {
-        guard let track = DemoLibrary.track(id: id) else { return }
+        guard let track = track(id: id) else { return }
         selectedTrackId = id
         updateChannel(ch) { state in
             state.trackId = id
@@ -107,6 +129,85 @@ final class MixerStore: ObservableObject {
         if ch == 1 || beatMatch {
             masterBpm = track.bpm
         }
+        Task { await prepareClip(ch: ch) }
+    }
+
+    func dismissDecodeBanner() {
+        decodeBanner = nil
+    }
+
+    func importURLs(_ urls: [URL]) {
+        Task { await importURLsAsync(urls) }
+    }
+
+    private func importURLsAsync(_ urls: [URL]) async {
+        isDecoding = true
+        defer { isDecoding = false }
+        for url in urls {
+            let access = url.startAccessingSecurityScopedResource()
+            defer { if access { url.stopAccessingSecurityScopedResource() } }
+            do {
+                if !FileDecoder.isSupported(url: url) {
+                    throw FileDecodeError.unsupportedCodec(".\(url.pathExtension.lowercased())")
+                }
+                let dest = try persistImport(url)
+                let clip = try await audio.decodeFile(url: dest)
+                let item = Track(
+                    id: UUID().uuidString,
+                    title: dest.deletingPathExtension().lastPathComponent,
+                    artist: clip.resampled ? "Imported · 48 kHz" : "Imported",
+                    bpm: 120,
+                    key: "—",
+                    duration: clip.duration,
+                    pattern: .kick,
+                    fileURL: dest,
+                    resampled: clip.resampled,
+                    isImported: true
+                )
+                imported.insert(item, at: 0)
+                selectedTrackId = item.id
+                decodeBanner = nil
+                loadTrack(ch: loadTarget, id: item.id)
+            } catch {
+                decodeBanner = error.localizedDescription
+            }
+        }
+    }
+
+    func prepareClip(ch: Int) async {
+        let state = ch == 1 ? ch1 : ch2
+        guard let tr = track(id: state.trackId) else { return }
+        let url = tr.fileURL ?? BundledAudio.url(for: tr.id)
+        guard let url else {
+            audio.clearClip(ch: ch)
+            return
+        }
+        isDecoding = true
+        defer { isDecoding = false }
+        do {
+            let clip = try await audio.decodeFile(url: url)
+            _ = audio.loadDecodedClip(ch: ch, clip: clip)
+            if let idx = imported.firstIndex(where: { $0.id == tr.id }) {
+                imported[idx].duration = clip.duration
+                imported[idx].resampled = clip.resampled
+            }
+            decodeBanner = nil
+        } catch {
+            decodeBanner = error.localizedDescription
+            audio.clearClip(ch: ch)
+        }
+    }
+
+    private func persistImport(_ url: URL) throws -> URL {
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let dir = docs.appendingPathComponent("Imports", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let dest = dir.appendingPathComponent(UUID().uuidString + "." + url.pathExtension.lowercased())
+        if FileManager.default.fileExists(atPath: dest.path) {
+            try FileManager.default.removeItem(at: dest)
+        }
+        try FileManager.default.copyItem(at: url, to: dest)
+        return dest
     }
 
     func syncBpm(from ch: Int) {
@@ -149,8 +250,8 @@ final class MixerStore: ObservableObject {
         audio.applyChannel(1, ch1, xf: crossfader, master: master)
         audio.applyChannel(2, ch2, xf: crossfader, master: master)
         audio.setMaster(master)
-        audio.setChannelPlaying(1, ch1.playing && ch1.source == .deck, DemoLibrary.track(id: ch1.trackId), bpm: ch1.effectiveBpm)
-        audio.setChannelPlaying(2, ch2.playing && ch2.source == .deck, DemoLibrary.track(id: ch2.trackId), bpm: ch2.effectiveBpm)
+        audio.setChannelPlaying(1, ch1.playing && ch1.source == .deck, track(id: ch1.trackId), bpm: ch1.effectiveBpm)
+        audio.setChannelPlaying(2, ch2.playing && ch2.source == .deck, track(id: ch2.trackId), bpm: ch2.effectiveBpm)
         pushFx()
     }
 
@@ -159,14 +260,18 @@ final class MixerStore: ObservableObject {
     }
 
     func advanceDecks(_ dt: Double) {
-        func step(_ ch: inout ChannelState) {
-            guard ch.playing, let track = DemoLibrary.track(id: ch.trackId) else { return }
+        func step(_ index: Int, _ ch: inout ChannelState) {
+            if let ph = audio.clipPlayhead(ch: index) {
+                ch.deckPos = ph.pos
+                return
+            }
+            guard ch.playing, let track = track(id: ch.trackId) else { return }
             let rate = 1 + ch.pitch / 100
             let next = ch.deckPos + (dt * rate) / track.duration
             ch.deckPos = next >= 1 ? 0 : next
         }
-        step(&ch1)
-        step(&ch2)
+        step(1, &ch1)
+        step(2, &ch2)
         meters = audio.readMeters()
     }
 }

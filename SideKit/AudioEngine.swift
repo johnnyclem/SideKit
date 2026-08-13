@@ -86,6 +86,34 @@ final class AudioEngine {
         return (Double(info.peak_ch1), Double(info.peak_ch2), Double(info.peak))
     }
 
+    @discardableResult
+    func loadDecodedClip(ch: Int, clip: DecodedClip) -> Bool {
+        clip.pcm.withUnsafeBufferPointer { ptr in
+            guard let base = ptr.baseAddress else { return false }
+            return cppBridge.loadClip(ch: UInt32(ch), pcm: base, frames: clip.frames, channels: 2)
+        }
+    }
+
+    func clearClip(ch: Int) {
+        cppBridge.clearClip(ch: UInt32(ch))
+    }
+
+    func seekClip(ch: Int, normalized: Double) {
+        cppBridge.setClipPosition(ch: UInt32(ch), normalized: Float(min(1, max(0, normalized))))
+    }
+
+    func clipPlayhead(ch: Int) -> (pos: Double, duration: Double)? {
+        let info = cppBridge.clipInfo(ch: UInt32(ch))
+        guard info.loaded != 0, info.frames > 0 else { return nil }
+        return (Double(info.playhead) / Double(info.frames), Double(info.frames) / 48_000)
+    }
+
+    func decodeFile(url: URL) async throws -> DecodedClip {
+        try await Task.detached(priority: .userInitiated) {
+            try FileDecoder.decode(url: url)
+        }.value
+    }
+
     func applyFx(_ fx: FxId, active: Bool, x: Double, y: Double, depth: Double) {
         if !active {
             filter.bands[0].bypass = true

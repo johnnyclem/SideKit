@@ -41,6 +41,11 @@ struct ChannelVoice {
     float level = 0;
     float peak = 0;
 
+    const float *clip_pcm = nullptr; // interleaved stereo, owned by Engine clip bank
+    uint32_t clip_frames = 0;
+    double clip_pos = 0;
+    bool has_clip = false;
+
     Biquad lo, mid, hi;
     Partial parts[kPartials]{};
 
@@ -49,10 +54,44 @@ struct ChannelVoice {
         samples_per_step = static_cast<double>(sr) * 60.0 / static_cast<double>(bpm) / 4.0;
     }
 
+    void attachClip(const float *pcm, uint32_t frames) {
+        clip_pcm = pcm;
+        clip_frames = frames;
+        clip_pos = 0;
+        has_clip = pcm != nullptr && frames > 0;
+        for (auto &p : parts) {
+            p.active = false;
+        }
+    }
+
+    void clearClip() {
+        clip_pcm = nullptr;
+        clip_frames = 0;
+        clip_pos = 0;
+        has_clip = false;
+    }
+
+    void seekNorm(float n) {
+        if (!has_clip || clip_frames == 0) {
+            return;
+        }
+        n = std::clamp(n, 0.f, 1.f);
+        clip_pos = static_cast<double>(n) * static_cast<double>(clip_frames);
+        if (clip_pos >= clip_frames) {
+            clip_pos = clip_frames > 0 ? clip_frames - 1 : 0;
+        }
+    }
+
     void start(float sr, uint8_t pat, float new_bpm) {
         playing = true;
         pattern = pat;
         setBpm(sr, new_bpm);
+        if (has_clip) {
+            if (clip_pos >= clip_frames) {
+                clip_pos = 0;
+            }
+            return;
+        }
         step = 0;
         step_accum = 0;
         for (auto &p : parts) {
@@ -159,50 +198,71 @@ struct ChannelVoice {
         step = (step + 1) & 15;
     }
 
-    float tick(float sr) {
-        if (playing) {
-            step_accum += 1.0;
-            if (step_accum >= samples_per_step) {
-                step_accum -= samples_per_step;
-                fireStep(sr);
-            }
+    float readClip() {
+        if (!clip_pcm || clip_frames == 0) {
+            return 0.f;
         }
+        if (clip_pos >= clip_frames) {
+            clip_pos = 0; // loop until SK-011 adds one-shot
+        }
+        const auto i0 = static_cast<uint32_t>(clip_pos);
+        const uint32_t i1 = (i0 + 1 < clip_frames) ? i0 + 1 : 0;
+        const float frac = static_cast<float>(clip_pos - static_cast<double>(i0));
+        const float l = clip_pcm[i0 * 2] + (clip_pcm[i1 * 2] - clip_pcm[i0 * 2]) * frac;
+        const float r = clip_pcm[i0 * 2 + 1] + (clip_pcm[i1 * 2 + 1] - clip_pcm[i0 * 2 + 1]) * frac;
+        clip_pos += 1.0;
+        return (l + r) * 0.5f;
+    }
 
+    float tick(float sr) {
         float s = 0.f;
-        for (auto &p : parts) {
-            if (!p.active) {
-                continue;
+
+        if (has_clip && playing) {
+            s = readClip();
+        } else {
+            if (playing && !has_clip) {
+                step_accum += 1.0;
+                if (step_accum >= samples_per_step) {
+                    step_accum -= samples_per_step;
+                    fireStep(sr);
+                }
             }
-            float o = 0.f;
-            switch (p.wave) {
-            case Wave::Sine:
-                o = static_cast<float>(std::sin(p.phase));
-                break;
-            case Wave::Saw:
-                o = static_cast<float>(2.0 * (p.phase / (2.0 * 3.141592653589793) - std::floor(p.phase / (2.0 * 3.141592653589793) + 0.5)));
-                break;
-            case Wave::Tri: {
-                const double t = p.phase / (2.0 * 3.141592653589793);
-                const double f = t - std::floor(t);
-                o = static_cast<float>(std::fabs(2.0 * f - 1.0) * 2.0 - 1.0);
-                break;
-            }
-            case Wave::Noise:
-                p.noise = p.noise * 1664525u + 1013904223u;
-                o = static_cast<float>(static_cast<int32_t>(p.noise) / 2147483648.0);
-                break;
-            }
-            s += o * p.env * p.amp;
-            p.phase += p.inc;
-            if (p.inc_end < p.inc) {
-                p.inc += (p.inc_end - p.inc) * 0.0025;
-            }
-            if (p.phase > 2.0 * 3.141592653589793) {
-                p.phase -= 2.0 * 3.141592653589793;
-            }
-            p.env *= p.decay;
-            if (p.env < 0.0008f) {
-                p.active = false;
+            for (auto &p : parts) {
+                if (!p.active) {
+                    continue;
+                }
+                float o = 0.f;
+                switch (p.wave) {
+                case Wave::Sine:
+                    o = static_cast<float>(std::sin(p.phase));
+                    break;
+                case Wave::Saw:
+                    o = static_cast<float>(2.0 * (p.phase / (2.0 * 3.141592653589793) -
+                                                  std::floor(p.phase / (2.0 * 3.141592653589793) + 0.5)));
+                    break;
+                case Wave::Tri: {
+                    const double t = p.phase / (2.0 * 3.141592653589793);
+                    const double f = t - std::floor(t);
+                    o = static_cast<float>(std::fabs(2.0 * f - 1.0) * 2.0 - 1.0);
+                    break;
+                }
+                case Wave::Noise:
+                    p.noise = p.noise * 1664525u + 1013904223u;
+                    o = static_cast<float>(static_cast<int32_t>(p.noise) / 2147483648.0);
+                    break;
+                }
+                s += o * p.env * p.amp;
+                p.phase += p.inc;
+                if (p.inc_end < p.inc) {
+                    p.inc += (p.inc_end - p.inc) * 0.0025;
+                }
+                if (p.phase > 2.0 * 3.141592653589793) {
+                    p.phase -= 2.0 * 3.141592653589793;
+                }
+                p.env *= p.decay;
+                if (p.env < 0.0008f) {
+                    p.active = false;
+                }
             }
         }
 

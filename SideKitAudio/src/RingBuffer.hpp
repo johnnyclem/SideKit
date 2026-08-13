@@ -6,8 +6,6 @@
 
 namespace sidekit {
 
-/// Single-producer / single-consumer ring. Capacity must be power of two.
-/// Producer = main/UI thread. Consumer = audio thread. No allocations after ctor.
 template <typename T, std::size_t Capacity>
 class SpscRing {
     static_assert((Capacity & (Capacity - 1)) == 0, "Capacity must be power of two");
@@ -50,11 +48,14 @@ enum class ParamId : uint8_t {
     TestToneEnable = 6,
     TestToneHz = 7,
     OutputGain = 8,
+    LoadClip = 9,
+    ClearClip = 10,
+    ClipSeek = 11,
 };
 
 struct ParamCmd {
     ParamId id;
-    uint8_t ch; // 1 or 2 for channel cmds; 0 = global
+    uint8_t ch;
     float a;
     float b;
     float c;

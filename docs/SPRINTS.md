@@ -127,7 +127,7 @@ S0 Foundation → S1 Deck A → S2 Mixer+USB → S3 FX+Library → S4 Hardware+P
 | SK-015 | Background audio session + route change handling | Audio | P0 | S | 3 | Eng | SK-004 |
 | SK-016 | Deck UI shell (SwiftUI) wired to engine | Decks | P0 | M | 5 | Eng | SK-003, SK-011 |
 
-#### SK-010 — File decode path (AAC/MP3/ALAC/WAV/AIFF → float PCM)
+#### SK-010 — File decode path (AAC/MP3/ALAC/WAV/AIFF → float PCM) ✅
 - **Epic:** Decks · **PRD:** PRD-03 · **Owner:** Audio eng
 - **Priority/Size/Points:** P0 / M / 5
 - **Depends on:** SK-004

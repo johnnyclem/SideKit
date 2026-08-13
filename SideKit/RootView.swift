@@ -12,6 +12,23 @@ struct RootView: View {
                     .padding(.top, 4)
                     .padding(.bottom, 8)
 
+                if let banner = store.decodeBanner, store.tab != .library {
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(SKTheme.warn)
+                        Text(banner)
+                            .font(.system(size: 11))
+                            .foregroundStyle(SKTheme.fg)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 0)
+                        Button("OK") { store.dismissDecodeBanner() }
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(SKTheme.muted)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 8)
+                }
+
                 ScrollView(.vertical, showsIndicators: false) {
                     Group {
                         switch store.tab {

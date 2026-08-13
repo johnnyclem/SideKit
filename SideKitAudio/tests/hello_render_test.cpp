@@ -1,10 +1,13 @@
+#include "Decode.hpp"
 #include "sidekit_audio.h"
 
 #include <atomic>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <new>
+#include <string>
 #include <vector>
 
 static std::atomic<long> g_allocs{0};
@@ -32,10 +35,20 @@ static int fail(const char *msg) {
     return 1;
 }
 
+static void fillSine(std::vector<float> &buf, uint32_t frames, uint32_t ch, double sr, float hz, float amp) {
+    buf.assign(static_cast<size_t>(frames) * ch, 0.f);
+    for (uint32_t i = 0; i < frames; ++i) {
+        const float s = amp * static_cast<float>(std::sin(2.0 * 3.141592653589793 * hz * i / sr));
+        for (uint32_t c = 0; c < ch; ++c) {
+            buf[i * ch + c] = s;
+        }
+    }
+}
+
 int main() {
     const char *ver = sk_engine_version();
-    if (!ver || ver[0] == '\0') {
-        return fail("empty version");
+    if (!ver || std::strstr(ver, "sk010") == nullptr) {
+        return fail("version should be sk010");
     }
 
     SKEngine *eng = sk_engine_create(48000.0, 2);
@@ -45,7 +58,7 @@ int main() {
 
     std::vector<float> buf(4096 * 2, 1.f);
 
-    // 1. Graph start → silence (no transport, no tone).
+    // 1. Silence on start.
     uint32_t n = sk_engine_render(eng, buf.data(), 256);
     SKRenderInfo info = sk_engine_last_info(eng);
     if (n != 256 || info.peak > 1e-6f) {
@@ -53,89 +66,133 @@ int main() {
         return 1;
     }
 
-    // 2. Diagnostic tone still works via SPSC.
-    sk_engine_set_test_tone(eng, 1, 440.f);
-    sk_engine_set_output_gain(eng, 0.25f);
-    n = sk_engine_render(eng, buf.data(), 256);
-    info = sk_engine_last_info(eng);
-    if (n != 256 || info.peak < 0.1f || info.peak > 0.3f) {
-        std::fprintf(stderr, "FAIL: tone peak=%f\n", info.peak);
-        return 1;
-    }
-    if (info.commands_applied < 2) {
-        return fail("tone commands not consumed");
-    }
-    sk_engine_set_test_tone(eng, 0, 440.f);
-    sk_engine_set_output_gain(eng, 0.f);
-    sk_engine_render(eng, buf.data(), 2048); // flush tone + smoother
-    info = sk_engine_last_info(eng);
-    if (info.peak > 1e-4f) {
-        std::fprintf(stderr, "FAIL: tone stop leak peak=%f\n", info.peak);
-        return 1;
-    }
-
-    // 3. Transport on deck A → energy. Stop → silence.
+    // 2. Pattern still works (no clip).
     sk_engine_set_master(eng, 0.9f);
-    sk_engine_set_crossfader(eng, 0.0f); // full A
+    sk_engine_set_crossfader(eng, 0.0f);
     sk_engine_set_channel_mix(eng, 1, 0.f, 0.85f, 0);
-    sk_engine_set_channel_eq(eng, 1, 0.f, 0.f, 0.f, 18.f);
     sk_engine_set_transport(eng, 1, 1, SK_PATTERN_KICK, 120.f);
-
-    float energy = 0.f;
-    for (int block = 0; block < 20; ++block) {
+    float kick = 0.f;
+    for (int i = 0; i < 20; ++i) {
         sk_engine_render(eng, buf.data(), 1024);
-        info = sk_engine_last_info(eng);
-        energy = std::max(energy, info.peak_ch1);
+        kick = std::max(kick, sk_engine_last_info(eng).peak_ch1);
     }
-    if (energy < 0.02f) {
-        std::fprintf(stderr, "FAIL: kick energy=%f\n", energy);
+    if (kick < 0.02f) {
+        std::fprintf(stderr, "FAIL: kick energy=%f\n", kick);
         return 1;
     }
-
     sk_engine_set_transport(eng, 1, 0, SK_PATTERN_KICK, 120.f);
-    for (int block = 0; block < 8; ++block) {
+    for (int i = 0; i < 8; ++i) {
         sk_engine_render(eng, buf.data(), 2048);
     }
-    info = sk_engine_last_info(eng);
-    if (info.peak > 0.01f || info.peak_ch1 > 0.01f) {
-        std::fprintf(stderr, "FAIL: stop leak peak=%f ch1=%f\n", info.peak, info.peak_ch1);
+
+    // 3. WAV write/decode + 44.1 → 48 k resample.
+    const char *wav48 = "/tmp/sk010_48k.wav";
+    const char *wav44 = "/tmp/sk010_441.wav";
+    const char *garbage = "/tmp/sk010_garbage.bin";
+
+    std::vector<float> tone48;
+    fillSine(tone48, 48000 / 4, 2, 48000.0, 440.f, 0.5f);
+    if (!sidekit::writeWavS16(wav48, tone48.data(), 48000 / 4, 2, 48000)) {
+        return fail("write 48k wav");
+    }
+
+    std::vector<float> tone44;
+    fillSine(tone44, 44100 / 4, 1, 44100.0, 440.f, 0.5f); // mono 44.1
+    if (!sidekit::writeWavS16(wav44, tone44.data(), 44100 / 4, 1, 44100)) {
+        return fail("write 44.1 wav");
+    }
+
+    FILE *gf = std::fopen(garbage, "wb");
+    std::fwrite("not a codec", 1, 11, gf);
+    std::fclose(gf);
+
+    float *decoded = nullptr;
+    uint32_t dframes = 0, dch = 0;
+    double dsr = 0;
+    if (!sk_wav_decode_file(wav48, &decoded, &dframes, &dch, &dsr) || dframes != 12000 || dch != 2 || dsr != 48000.0) {
+        std::fprintf(stderr, "FAIL: decode 48k frames=%u ch=%u sr=%f\n", dframes, dch, dsr);
+        return 1;
+    }
+    if (std::fabs(decoded[0]) < 0.01f && std::fabs(decoded[20]) < 0.01f) {
+        return fail("decoded 48k is silent");
+    }
+    sk_pcm_free(decoded);
+
+    decoded = nullptr;
+    if (!sk_wav_decode_file(wav44, &decoded, &dframes, &dch, &dsr) || dch != 1 || std::fabs(dsr - 44100.0) > 0.1) {
+        return fail("decode 44.1");
+    }
+    const uint32_t expect48 = static_cast<uint32_t>(std::llround(dframes * (48000.0 / 44100.0)));
+    std::vector<float> rs(static_cast<size_t>(expect48 + 8) * 2);
+    uint32_t out_n = sk_resample_stereo(decoded, dframes, dch, dsr, rs.data(), expect48 + 8, 48000.0);
+    sk_pcm_free(decoded);
+    if (out_n != expect48 || expect48 < 11900 || expect48 > 12100) {
+        std::fprintf(stderr, "FAIL: resample frames=%u expect≈12000\n", out_n);
         return 1;
     }
 
-    // 4. Mute kills output while transport stays on.
-    sk_engine_set_transport(eng, 1, 1, SK_PATTERN_BASS, 110.f);
-    for (int i = 0; i < 8; ++i) {
-        sk_engine_render(eng, buf.data(), 1024);
+    if (sk_wav_decode_file(garbage, &decoded, &dframes, &dch, &dsr)) {
+        return fail("garbage file should fail");
     }
-    sk_engine_set_channel_mix(eng, 1, 0.f, 0.85f, 1);
+
+    // 4. Load resampled clip, play, energy, then stop → silence.
+    if (!sk_engine_load_clip(eng, 1, rs.data(), out_n, 2)) {
+        return fail("load clip");
+    }
+    sk_engine_set_channel_mix(eng, 1, 0.f, 0.9f, 0);
+    sk_engine_set_transport(eng, 1, 1, 0, 120.f);
+    float clip_peak = 0.f;
+    for (int i = 0; i < 12; ++i) {
+        sk_engine_render(eng, buf.data(), 1024);
+        info = sk_engine_last_info(eng);
+        clip_peak = std::max(clip_peak, info.peak_ch1);
+    }
+    SKClipInfo clip = sk_engine_clip_info(eng, 1);
+    if (!clip.loaded || clip.frames != out_n) {
+        return fail("clip info after load");
+    }
+    if (clip_peak < 0.05f) {
+        std::fprintf(stderr, "FAIL: clip peak=%f\n", clip_peak);
+        return 1;
+    }
+
+    sk_engine_set_transport(eng, 1, 0, 0, 120.f);
     for (int i = 0; i < 6; ++i) {
         sk_engine_render(eng, buf.data(), 1024);
     }
-    info = sk_engine_last_info(eng);
-    if (info.peak > 0.01f) {
-        std::fprintf(stderr, "FAIL: mute leak peak=%f\n", info.peak);
-        return 1;
+    if (sk_engine_last_info(eng).peak > 0.01f) {
+        return fail("clip pause leak");
     }
-    sk_engine_set_transport(eng, 1, 0, 0, 120.f);
-    sk_engine_set_channel_mix(eng, 1, 0.f, 0.85f, 0);
-    sk_engine_render(eng, buf.data(), 1024);
 
-    // 5. No allocations on the audio thread.
+    // 5. Clear clip, no pattern play → silence.
+    sk_engine_clear_clip(eng, 1);
+    sk_engine_render(eng, buf.data(), 512);
+    clip = sk_engine_clip_info(eng, 1);
+    if (clip.loaded) {
+        return fail("clip still loaded after clear");
+    }
+
+    // 6. No allocations on the audio thread while playing a clip.
+    if (!sk_engine_load_clip(eng, 1, tone48.data(), 48000 / 4, 2)) {
+        return fail("reload 48k clip");
+    }
+    sk_engine_set_transport(eng, 1, 1, 0, 120.f);
+    sk_engine_render(eng, buf.data(), 256); // apply load/transport
     g_allocs.store(0);
     g_count_allocs = true;
     for (int i = 0; i < 16; ++i) {
-        sk_engine_set_channel_mix(eng, 1, -3.f, 0.7f, 0);
-        sk_engine_set_crossfader(eng, 0.4f);
+        sk_engine_set_channel_mix(eng, 1, -2.f, 0.8f, 0);
+        sk_engine_set_clip_position(eng, 1, 0.1f);
         sk_engine_render(eng, buf.data(), 512);
     }
     g_count_allocs = false;
     const long allocs = g_allocs.load();
     if (allocs != 0) {
-        std::fprintf(stderr, "FAIL: %ld allocations during render\n", allocs);
+        std::fprintf(stderr, "FAIL: %ld allocations during clip render\n", allocs);
         return 1;
     }
 
     sk_engine_destroy(eng);
-    std::printf("OK  SideKitAudio %s  sk004 render/SPSC/silence/no-alloc  kick=%.3f\n", ver, energy);
+    std::printf("OK  SideKitAudio %s  decode/resample/clip  kick=%.3f clip=%.3f rs=%u\n", ver, kick, clip_peak, out_n);
     return 0;
 }

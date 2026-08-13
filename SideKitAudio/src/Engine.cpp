@@ -1,7 +1,9 @@
 #include "Engine.hpp"
+#include "Decode.hpp"
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <new>
 
 namespace sidekit {
@@ -25,8 +27,40 @@ Engine::Engine(double sample_rate, uint32_t channels)
 }
 
 ChannelVoice &Engine::voice(uint8_t ch) { return ch == 2 ? ch2_ : ch1_; }
+const ChannelVoice &Engine::voice(uint8_t ch) const { return ch == 2 ? ch2_ : ch1_; }
+ClipBank &Engine::bank(uint8_t ch) { return ch == 2 ? clip2_ : clip1_; }
 
 void Engine::post(ParamCmd cmd) { commands_.push(cmd); }
+
+int Engine::loadClip(uint8_t ch, const float *interleaved, uint32_t frames, uint32_t channels) {
+    if (!interleaved || frames == 0 || frames > kMaxClipFrames || (channels != 1 && channels != 2)) {
+        return 0;
+    }
+    auto &b = bank(ch);
+    const uint32_t dest = 1 - b.live;
+    float *buf = new (std::nothrow) float[static_cast<size_t>(frames) * 2];
+    if (!buf) {
+        return 0;
+    }
+    upmixToStereo(interleaved, frames, channels, buf);
+    delete[] b.pcm[dest];
+    b.pcm[dest] = buf;
+    b.frames[dest] = frames;
+    post({ParamId::LoadClip, ch, static_cast<float>(dest), static_cast<float>(frames), 0, 0});
+    return 1;
+}
+
+void Engine::requestClearClip(uint8_t ch) { post({ParamId::ClearClip, ch, 0, 0, 0, 0}); }
+
+SKClipInfo Engine::clipInfo(uint8_t ch) const {
+    const auto &v = voice(ch);
+    SKClipInfo info{};
+    info.frames = v.clip_frames;
+    info.playhead = static_cast<uint32_t>(v.clip_pos);
+    info.channels = 2;
+    info.loaded = v.has_clip ? 1 : 0;
+    return info;
+}
 
 void Engine::consumeCommands() {
     ParamCmd cmd{};
@@ -75,6 +109,19 @@ void Engine::consumeCommands() {
             break;
         case ParamId::OutputGain:
             tone_gain_ = std::clamp(cmd.a, 0.f, 1.f);
+            break;
+        case ParamId::LoadClip: {
+            auto &b = bank(cmd.ch);
+            const auto slot = static_cast<uint32_t>(cmd.a) & 1u;
+            b.live = slot;
+            voice(cmd.ch).attachClip(b.pcm[slot], b.frames[slot]);
+            break;
+        }
+        case ParamId::ClearClip:
+            voice(cmd.ch).clearClip();
+            break;
+        case ParamId::ClipSeek:
+            voice(cmd.ch).seekNorm(cmd.a);
             break;
         }
     }
@@ -149,7 +196,7 @@ uint32_t Engine::render(float *interleaved, uint32_t frames) {
 
 extern "C" {
 
-const char *sk_engine_version(void) { return "0.2.0-sk004"; }
+const char *sk_engine_version(void) { return "0.3.0-sk010"; }
 
 SKEngine *sk_engine_create(double sample_rate, uint32_t channels) {
     auto *engine = new (std::nothrow) sidekit::Engine(sample_rate, channels);
@@ -222,5 +269,59 @@ void sk_engine_set_output_gain(SKEngine *engine, float linear) {
         reinterpret_cast<sidekit::Engine *>(engine)->post({sidekit::ParamId::OutputGain, 0, linear, 0, 0, 0});
     }
 }
+
+int sk_engine_load_clip(SKEngine *engine, uint32_t ch, const float *interleaved, uint32_t frames, uint32_t channels) {
+    if (!engine) {
+        return 0;
+    }
+    return reinterpret_cast<sidekit::Engine *>(engine)->loadClip(static_cast<uint8_t>(ch), interleaved, frames, channels);
+}
+
+void sk_engine_clear_clip(SKEngine *engine, uint32_t ch) {
+    if (engine) {
+        reinterpret_cast<sidekit::Engine *>(engine)->requestClearClip(static_cast<uint8_t>(ch));
+    }
+}
+
+SKClipInfo sk_engine_clip_info(const SKEngine *engine, uint32_t ch) {
+    if (!engine) {
+        return SKClipInfo{0, 0, 2, 0};
+    }
+    return reinterpret_cast<const sidekit::Engine *>(engine)->clipInfo(static_cast<uint8_t>(ch));
+}
+
+void sk_engine_set_clip_position(SKEngine *engine, uint32_t ch, float normalized) {
+    if (engine) {
+        reinterpret_cast<sidekit::Engine *>(engine)->post(
+            {sidekit::ParamId::ClipSeek, static_cast<uint8_t>(ch), normalized, 0, 0, 0});
+    }
+}
+
+uint32_t sk_resample_stereo(const float *in, uint32_t in_frames, uint32_t in_ch, double in_sr, float *out,
+                            uint32_t out_capacity, double out_sr) {
+    return sidekit::resampleStereo(in, in_frames, in_ch, in_sr, out, out_capacity, out_sr);
+}
+
+int sk_wav_decode_file(const char *path, float **out_interleaved, uint32_t *frames, uint32_t *channels, double *sr) {
+    if (!path || !out_interleaved || !frames || !channels || !sr) {
+        return 0;
+    }
+    sidekit::WavData wav;
+    if (!sidekit::decodeWav(path, wav)) {
+        return 0;
+    }
+    auto *buf = new (std::nothrow) float[wav.pcm.size()];
+    if (!buf) {
+        return 0;
+    }
+    std::memcpy(buf, wav.pcm.data(), wav.pcm.size() * sizeof(float));
+    *out_interleaved = buf;
+    *frames = wav.frames;
+    *channels = wav.channels;
+    *sr = wav.sample_rate;
+    return 1;
+}
+
+void sk_pcm_free(float *p) { delete[] p; }
 
 } // extern "C"

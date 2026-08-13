@@ -116,8 +116,11 @@ struct Track: Identifiable, Equatable {
     let artist: String
     let bpm: Double
     let key: String
-    let duration: Double
+    var duration: Double
     let pattern: Pattern
+    var fileURL: URL? = nil
+    var resampled: Bool = false
+    var isImported: Bool = false
 }
 
 struct ChannelState: Equatable {

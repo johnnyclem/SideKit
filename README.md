@@ -13,7 +13,7 @@ Portrait-only. Dual virtual decks, mixer, performance FX pad, library, and USB l
 3. Select your **Team** under Signing & Capabilities (bundle id `com.johnnyclem.SideKit`)
 4. Run on an **iPhone** (USB-C, iOS 17+) or Simulator
 
-First tap Play to unlock the audio session. Demo patterns play until file decode (SK-010) lands.
+First tap Play to unlock the audio session. Deck A loads a bundled 48 kHz WAV. Import your own WAV/AIFF/MP3/AAC/M4A/ALAC from Library.
 
 ## What shipped in this first native cut
 
@@ -22,26 +22,27 @@ First tap Play to unlock the audio session. Demo patterns play until file decode
 | **Mixer** | Dual channel strips, gain / 3-band EQ knobs, faders, cue / mute / FX, compressor menu, DJ·Studio·Param EQ styles, crossfader, master / cue / phones |
 | **Decks** | Dual virtual decks, waveform + seek, pitch ±8%, SYNC, beat-match, playhead |
 | **FX** | Six punch-in FX (filter, delay, tape, repeat, tremolo, siren), force pad X/Y, depth, series/parallel |
-| **Library** | Six demo tracks, search, load → Deck A/B |
+| **Library** | Demo tracks + Files import, search, load → Deck A/B, codec error banner |
 | **Link** | USB route watch for Sidekick / EP-136 / class-compliant USB, mix mode, 8×4 matrix |
 
-Audio is **AVAudioEngine** (48 kHz) with a step sequencer that mirrors the web prototype’s kick / bass / hat / break / synth patterns, plus EQ and delay/filter FX.
+Audio is **AVAudioEngine** (48 kHz I/O + FX) pulling a C++ render callback. Decoded files play from double-buffered clip slots; demo patterns still fill empty decks.
 
 Hardware detection uses `AVAudioSession` route changes. Plug in a Sidekick over USB-C and Link should flip to connected when the port name matches.
 
-## C++ audio core (SK-001 / SK-004)
+## C++ audio core (SK-001 / SK-004 / SK-010)
 
 `SideKitAudio` is a static library linked into the app.
 
 - C ABI in `SideKitAudio/include/sidekit_audio.h`
 - Lock-free SPSC command queue (`RingBuffer.hpp`) so the UI thread never touches the render callback
 - Dual-voice pattern sequencer + 3-band EQ + XF/master in `Engine::render`
-- Swift posts transport/mix/EQ over the SPSC queue only
-- Host check: `make -C SideKitAudio test` (silence, kick energy, mute, no-alloc)
+- File clips: ExtAudioFile (device) / WAV+resample (host) → 48 kHz stereo float, double-buffered load
+- Swift posts transport/mix/EQ/clips over the SPSC queue only
+- Host check: `make -C SideKitAudio test` (silence, kick, WAV decode, 44.1→48k, clip play, no-alloc)
 
 On first Play, the console should print:
 
-`SideKit C++ 0.2.0-sk004 warmup frames=64 t=64 silent=true`
+`SideKit C++ 0.3.0-sk010 warmup frames=64 t=64 silent=true`
 
 Signing: **Automatic** / Apple Development. Select your Team in Xcode (Signing & Capabilities). `DEVELOPMENT_TEAM` is left blank on purpose.
 
@@ -54,11 +55,14 @@ SideKit.xcodeproj
 SideKit/
   SideKitApp.swift
   SKAudioBridge.swift      C++ bridge
+  FileDecoder.swift        ExtAudioFile → 48 kHz stereo float
   AudioEngine.swift        AVAudioEngine + C++ source node
+  Audio/*.wav              bundled decode fixtures
   ...
 SideKitAudio/
   include/sidekit_audio.h  C ABI
   src/Engine.cpp           render callback
+  src/Decode.hpp           WAV + linear resample
   src/RingBuffer.hpp       SPSC param queue
   tests/hello_render_test.cpp
 ```
@@ -71,9 +75,9 @@ SideKitAudio/
 
 ## Roadmap
 
-Sprint tickets: `docs/SPRINTS.md`. **SK-001 and SK-004 are done.** Next:
+Sprint tickets: `docs/SPRINTS.md`. **SK-001, SK-004, SK-010 are done.** Next:
 
-- SK-010 file decode (AAC/MP3/ALAC/WAV)
+- SK-011 deck transport (play/pause/restart/seek fades)
 - SK-025/026 real USB 8×4 mix modes
 - SK-040 Core MIDI maps
 - SK-044 StoreKit Pro unlock

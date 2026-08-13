@@ -54,6 +54,23 @@ final class SKAudioBridge {
         sk_engine_set_output_gain(engine, enabled ? 0.18 : 0)
     }
 
+    @discardableResult
+    func loadClip(ch: UInt32, pcm: UnsafePointer<Float>, frames: UInt32, channels: UInt32) -> Bool {
+        sk_engine_load_clip(engine, ch, pcm, frames, channels) == 1
+    }
+
+    func clearClip(ch: UInt32) {
+        sk_engine_clear_clip(engine, ch)
+    }
+
+    func clipInfo(ch: UInt32) -> SKClipInfo {
+        sk_engine_clip_info(engine, ch)
+    }
+
+    func setClipPosition(ch: UInt32, normalized: Float) {
+        sk_engine_set_clip_position(engine, ch, normalized)
+    }
+
     func warmup() -> SKRenderInfo {
         var scratch = [Float](repeating: 0, count: 64 * 2)
         scratch.withUnsafeMutableBufferPointer { ptr in

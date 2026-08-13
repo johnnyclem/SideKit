@@ -38,7 +38,7 @@ struct DecksView: View {
                 meter: store.meters.ch1,
                 onToggle: { store.togglePlay(1) },
                 onPitch: { p in store.updateChannel(1) { $0.pitch = p } },
-                onSeek: { pos in store.updateChannel(1) { $0.deckPos = pos } },
+                onSeek: { pos in store.seekDeck(1, pos) },
                 onSync: { store.syncBpm(from: 1) }
             )
             DeckPanelView(
@@ -48,7 +48,7 @@ struct DecksView: View {
                 meter: store.meters.ch2,
                 onToggle: { store.togglePlay(2) },
                 onPitch: { p in store.updateChannel(2) { $0.pitch = p } },
-                onSeek: { pos in store.updateChannel(2) { $0.deckPos = pos } },
+                onSeek: { pos in store.seekDeck(2, pos) },
                 onSync: { store.syncBpm(from: 2) }
             )
         }
@@ -56,6 +56,7 @@ struct DecksView: View {
 }
 
 struct DeckPanelView: View {
+    @EnvironmentObject private var store: MixerStore
     let ch: Int
     let accent: Color
     let channel: ChannelState
@@ -65,7 +66,7 @@ struct DeckPanelView: View {
     let onSeek: (Double) -> Void
     let onSync: () -> Void
 
-    private var track: Track? { DemoLibrary.track(id: channel.trackId) }
+    private var track: Track? { store.track(id: channel.trackId) }
 
     private var wave: [Double] {
         let seed = Double((channel.trackId ?? "x").unicodeScalars.first?.value ?? 1) + Double(ch * 17)
