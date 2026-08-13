@@ -53,6 +53,7 @@ enum class ParamId : uint8_t {
     ClipSeek = 11,
     SeekFrames = 12,
     Restart = 13,
+    Pitch = 14,
 };
 
 struct ParamCmd {

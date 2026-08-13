@@ -190,6 +190,9 @@ struct DeckPanelView: View {
                     in: -8...8
                 )
                 .tint(SKTheme.accent)
+                .simultaneousGesture(
+                    TapGesture(count: 2).onEnded { onPitch(0) }
+                )
                 Button {
                     onPitch(0)
                 } label: {
@@ -199,7 +202,11 @@ struct DeckPanelView: View {
                         .frame(width: 48, alignment: .trailing)
                 }
                 .buttonStyle(.plain)
+                .simultaneousGesture(
+                    TapGesture(count: 2).onEnded { onPitch(0) }
+                )
             }
+            .help("Drag to time-stretch ±8% (key lock). Double-tap to reset.")
         }
         .padding(12)
         .skPanel()

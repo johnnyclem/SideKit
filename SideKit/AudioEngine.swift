@@ -79,6 +79,7 @@ final class AudioEngine {
         )
         cppBridge.setCrossfader(Float(xf))
         cppBridge.setMaster(Float(master))
+        cppBridge.setPitch(ch: UInt32(ch), percent: Float(state.pitch))
     }
 
     func readMeters() -> (ch1: Double, ch2: Double, master: Double) {

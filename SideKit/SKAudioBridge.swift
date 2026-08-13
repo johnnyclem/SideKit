@@ -79,6 +79,10 @@ final class SKAudioBridge {
         sk_engine_restart(engine, ch)
     }
 
+    func setPitch(ch: UInt32, percent: Float) {
+        sk_engine_set_pitch(engine, ch, percent)
+    }
+
     func warmup() -> SKRenderInfo {
         var scratch = [Float](repeating: 0, count: 64 * 2)
         scratch.withUnsafeMutableBufferPointer { ptr in

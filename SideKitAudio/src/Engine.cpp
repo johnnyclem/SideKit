@@ -135,6 +135,9 @@ void Engine::consumeCommands() {
         case ParamId::Restart:
             voice(cmd.ch).restart();
             break;
+        case ParamId::Pitch:
+            voice(cmd.ch).setPitch(cmd.a);
+            break;
         }
     }
 }
@@ -208,7 +211,7 @@ uint32_t Engine::render(float *interleaved, uint32_t frames) {
 
 extern "C" {
 
-const char *sk_engine_version(void) { return "0.4.0-sk011"; }
+const char *sk_engine_version(void) { return "0.5.0-sk012"; }
 
 SKEngine *sk_engine_create(double sample_rate, uint32_t channels) {
     auto *engine = new (std::nothrow) sidekit::Engine(sample_rate, channels);
@@ -313,6 +316,13 @@ void sk_engine_seek_frames(SKEngine *engine, uint32_t ch, uint32_t frame) {
 void sk_engine_restart(SKEngine *engine, uint32_t ch) {
     if (engine) {
         reinterpret_cast<sidekit::Engine *>(engine)->post(sidekit::makeCmd(sidekit::ParamId::Restart, static_cast<uint8_t>(ch)));
+    }
+}
+
+void sk_engine_set_pitch(SKEngine *engine, uint32_t ch, float percent) {
+    if (engine) {
+        reinterpret_cast<sidekit::Engine *>(engine)->post(
+            sidekit::makeCmd(sidekit::ParamId::Pitch, static_cast<uint8_t>(ch), percent));
     }
 }
 

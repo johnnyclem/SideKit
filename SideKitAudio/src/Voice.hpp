@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Biquad.hpp"
+#include "Wsola.hpp"
 #include "sidekit_audio.h"
 
 #include <algorithm>
@@ -52,6 +53,11 @@ struct ChannelVoice {
     uint32_t clip_frames = 0;
     double clip_pos = 0;
     bool has_clip = false;
+
+    float pitch_pct = 0.f;
+    float rate_z = 1.f;
+    bool wsola_on = false;
+    Wsola wsola{};
 
     int fade_dir = 0; // +1 in, -1 out, 0 idle
     uint32_t fade_i = 0;
@@ -114,6 +120,16 @@ struct ChannelVoice {
         }
     }
 
+    void setPitch(float percent) {
+        pitch_pct = std::clamp(percent, -8.f, 8.f);
+        if (std::fabs(pitch_pct) < 0.02f) {
+            pitch_pct = 0.f;
+            rate_z = 1.f;
+        }
+    }
+
+    float targetRate() const { return 1.f + pitch_pct * 0.01f; }
+
     void attachClip(const float *pcm, uint32_t frames) {
         clip_pcm = pcm;
         clip_frames = frames;
@@ -121,6 +137,9 @@ struct ChannelVoice {
         has_clip = pcm != nullptr && frames > 0;
         fade_dir = 0;
         fade_i = 0;
+        wsola_on = false;
+        wsola.reset(0);
+        rate_z = targetRate();
         for (auto &p : parts) {
             p.active = false;
         }
@@ -154,6 +173,8 @@ struct ChannelVoice {
             frame = clip_frames - 1;
         }
         clip_pos = static_cast<double>(frame);
+        wsola_on = false;
+        wsola.reset(clip_pos);
         if (playing || want_playing) {
             beginFadeIn();
         }
@@ -180,6 +201,8 @@ struct ChannelVoice {
         clip_pos = 0;
         step = 0;
         step_accum = 0;
+        wsola_on = false;
+        wsola.reset(0);
         if (want_playing || playing) {
             want_playing = true;
             playing = true;
@@ -305,7 +328,7 @@ struct ChannelVoice {
         step = (step + 1) & 15;
     }
 
-    float readClip() {
+    float readClipLinear(double inc) {
         if (!clip_pcm || clip_frames == 0) {
             return 0.f;
         }
@@ -314,6 +337,7 @@ struct ChannelVoice {
             want_playing = false;
             playing = false;
             fade_dir = 0;
+            wsola_on = false;
             return 0.f;
         }
         const auto i0 = static_cast<uint32_t>(clip_pos);
@@ -321,8 +345,35 @@ struct ChannelVoice {
         const float frac = static_cast<float>(clip_pos - static_cast<double>(i0));
         const float l = clip_pcm[i0 * 2] + (clip_pcm[i1 * 2] - clip_pcm[i0 * 2]) * frac;
         const float r = clip_pcm[i0 * 2 + 1] + (clip_pcm[i1 * 2 + 1] - clip_pcm[i0 * 2 + 1]) * frac;
-        clip_pos += 1.0;
+        clip_pos += inc;
         return (l + r) * 0.5f;
+    }
+
+    float readClip() {
+        if (!clip_pcm || clip_frames == 0) {
+            return 0.f;
+        }
+        const float target = targetRate();
+        rate_z += (target - rate_z) * 0.004f;
+        const bool stretch = std::fabs(rate_z - 1.f) > 0.0008f;
+        if (!stretch) {
+            wsola_on = false;
+            return readClipLinear(1.0);
+        }
+        if (!wsola_on) {
+            wsola.reset(clip_pos);
+            wsola_on = true;
+        }
+        const float s = wsola.pull(clip_pcm, clip_frames, rate_z);
+        clip_pos = wsola.playhead();
+        if (wsola.ended || clip_pos >= clip_frames) {
+            clip_pos = clip_frames;
+            want_playing = false;
+            playing = false;
+            fade_dir = 0;
+            wsola_on = false;
+        }
+        return s;
     }
 
     float tick(float sr) {
@@ -331,7 +382,8 @@ struct ChannelVoice {
 
         if (has_clip && playing && fade_dir == 0 && clip_frames > 0) {
             const auto remain = clip_frames - playheadFrame();
-            if (remain > 0 && remain <= fade_len) {
+            const auto need = static_cast<uint32_t>(std::lround(static_cast<double>(fade_len) * std::max(0.5f, rate_z)));
+            if (remain > 0 && remain <= need) {
                 beginFadeOut();
             }
         }

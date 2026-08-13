@@ -42,6 +42,11 @@ enum {
 /** Equal-power start/stop fade length. */
 enum { SK_FADE_MS = 5 };
 
+/** DJ pitch fader range (percent). Time-stretch, key locked. */
+enum { SK_PITCH_MIN = -8, SK_PITCH_MAX = 8 };
+
+void sk_engine_set_pitch(SKEngine *engine, uint32_t ch, float percent);
+
 const char *sk_engine_version(void);
 
 SKEngine *sk_engine_create(double sample_rate, uint32_t channels);

@@ -145,7 +145,7 @@ S0 Foundation → S1 Deck A → S2 Mixer+USB → S3 FX+Library → S4 Hardware+P
   - Seek lands within 1 frame of target
   - UI state mirrors engine within 1 render quantum
 
-#### SK-012 — Pitch ±8% time-stretch (WSOLA or phase vocoder v1)
+#### SK-012 — Pitch ±8% time-stretch (WSOLA or phase vocoder v1) ✅
 - **Epic:** Decks · **PRD:** PRD-03 D-02 · **Owner:** Audio eng
 - **Priority/Size/Points:** P0 / L / 8
 - **Depends on:** SK-011

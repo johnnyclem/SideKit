@@ -4,7 +4,7 @@
 #include <atomic>
 #include <cmath>
 #include <cstdio>
-#include <cstdlib>
+#include <ctime>
 #include <cstring>
 #include <new>
 #include <string>
@@ -45,10 +45,23 @@ static void fillSine(std::vector<float> &buf, uint32_t frames, uint32_t ch, doub
     }
 }
 
+static float goertzel(const float *x, int n, int stride, float freq, float sr) {
+    const float k = 0.5f + static_cast<float>(n) * freq / sr;
+    const float w = 2.f * 3.14159265f * k / static_cast<float>(n);
+    const float c = 2.f * std::cos(w);
+    float s0 = 0, s1 = 0, s2 = 0;
+    for (int i = 0; i < n; ++i) {
+        s0 = x[i * stride] + c * s1 - s2;
+        s2 = s1;
+        s1 = s0;
+    }
+    return s1 * s1 + s2 * s2 - c * s1 * s2;
+}
+
 int main() {
     const char *ver = sk_engine_version();
-    if (!ver || std::strstr(ver, "sk011") == nullptr) {
-        return fail("version should be sk011");
+    if (!ver || std::strstr(ver, "sk012") == nullptr) {
+        return fail("version should be sk012");
     }
 
     SKEngine *eng = sk_engine_create(48000.0, 2);
@@ -273,8 +286,100 @@ int main() {
         return fail("playing still set after fade-out");
     }
 
+    // 12. SK-012: +8% time-stretch keeps 440 Hz (key lock) and advances ~1.08×.
+    std::vector<float> sine2;
+    fillSine(sine2, 48000 * 2, 2, 48000.0, 440.f, 0.55f);
+    if (!sk_engine_load_clip(eng, 1, sine2.data(), 48000 * 2, 2)) {
+        return fail("load sine2");
+    }
+    sk_engine_set_channel_mix(eng, 1, 0.f, 1.f, 0);
+    sk_engine_set_master(eng, 1.f);
+    sk_engine_set_crossfader(eng, 0.f);
+    sk_engine_set_pitch(eng, 1, 8.f);
+    sk_engine_seek_frames(eng, 1, 4000);
+    sk_engine_set_transport(eng, 1, 1, 0, 120.f);
+    std::vector<float> stretch(8192 * 2, 0.f);
+    sk_engine_render(eng, stretch.data(), 2048); // warmup fade + WSOLA
+    const uint32_t ph0 = sk_engine_clip_info(eng, 1).playhead;
+    sk_engine_render(eng, stretch.data(), 4800);
+    const uint32_t ph1 = sk_engine_clip_info(eng, 1).playhead;
+    const float ratio = static_cast<float>(ph1 - ph0) / 4800.f;
+    if (ratio < 1.03f || ratio > 1.14f) {
+        std::fprintf(stderr, "FAIL: +8%% playhead ratio=%f (ph %u→%u)\n", ratio, ph0, ph1);
+        return 1;
+    }
+    const float g440 = goertzel(stretch.data(), 4800, 2, 440.f, 48000.f);
+    const float g475 = goertzel(stretch.data(), 4800, 2, 475.2f, 48000.f);
+    if (g440 < g475 * 1.2f) {
+        std::fprintf(stderr, "FAIL: key lock 440=%g 475=%g\n", g440, g475);
+        return 1;
+    }
+
+    // 13. -8% slower playhead.
+    sk_engine_set_pitch(eng, 1, -8.f);
+    sk_engine_seek_frames(eng, 1, 8000);
+    sk_engine_render(eng, stretch.data(), 1024);
+    const uint32_t ph2 = sk_engine_clip_info(eng, 1).playhead;
+    sk_engine_render(eng, stretch.data(), 4800);
+    const uint32_t ph3 = sk_engine_clip_info(eng, 1).playhead;
+    const float ratioLo = static_cast<float>(ph3 - ph2) / 4800.f;
+    if (ratioLo < 0.86f || ratioLo > 0.97f) {
+        std::fprintf(stderr, "FAIL: -8%% playhead ratio=%f\n", ratioLo);
+        return 1;
+    }
+
+    // 14. Continuous pitch drag: no zipper vs steady tone.
+    sk_engine_set_pitch(eng, 1, 0.f);
+    sk_engine_seek_frames(eng, 1, 2000);
+    sk_engine_set_transport(eng, 1, 1, 0, 120.f);
+    sk_engine_render(eng, stretch.data(), 2048);
+    float steady_d = 0.f;
+    sk_engine_set_pitch(eng, 1, 8.f);
+    sk_engine_render(eng, stretch.data(), 4096);
+    for (int i = 1; i < 4096; ++i) {
+        steady_d = std::max(steady_d, std::fabs(stretch[i * 2] - stretch[(i - 1) * 2]));
+    }
+    float sweep_d = 0.f;
+    for (int step = 16; step >= 0; --step) { // +8 → -8, continuous
+        sk_engine_set_pitch(eng, 1, -8.f + step * 1.f);
+        sk_engine_render(eng, stretch.data(), 128);
+        for (int i = 1; i < 128; ++i) {
+            sweep_d = std::max(sweep_d, std::fabs(stretch[i * 2] - stretch[(i - 1) * 2]));
+        }
+    }
+    if (sweep_d > steady_d * 3.2f + 0.08f) {
+        std::fprintf(stderr, "FAIL: zipper sweep=%f steady=%f\n", sweep_d, steady_d);
+        return 1;
+    }
+
+    // 15. Reset to 0% restores 1.0× playhead.
+    sk_engine_set_pitch(eng, 1, 0.f);
+    sk_engine_seek_frames(eng, 1, 3000);
+    sk_engine_render(eng, stretch.data(), 512);
+    const uint32_t ph4 = sk_engine_clip_info(eng, 1).playhead;
+    sk_engine_render(eng, stretch.data(), 1024);
+    const uint32_t ph5 = sk_engine_clip_info(eng, 1).playhead;
+    const int zeroDrift = static_cast<int>(ph5) - static_cast<int>(ph4) - 1024;
+    if (std::abs(zeroDrift) > 4) {
+        std::fprintf(stderr, "FAIL: pitch 0 playhead drift=%d\n", zeroDrift);
+        return 1;
+    }
+
+    // 16. CPU proxy: 1 s of +8% stretch should be well under 15% of realtime.
+    {
+        const auto t0 = std::clock();
+        for (int i = 0; i < 48; ++i) {
+            sk_engine_render(eng, stretch.data(), 1000);
+        }
+        const double sec = static_cast<double>(std::clock() - t0) / CLOCKS_PER_SEC;
+        if (sec > 0.45) {
+            std::fprintf(stderr, "FAIL: stretch CPU %.3fs for 1s audio\n", sec);
+            return 1;
+        }
+        std::printf("     stretch cpu %.3fs / 1s audio (%.0f%% core)\n", sec, sec * 100.0);
+    }
+
     sk_engine_destroy(eng);
-    std::printf("OK  SideKitAudio %s  decode/resample/clip + transport  kick=%.3f clip=%.3f rs=%u\n", ver, kick,
-                clip_peak, out_n);
+    std::printf("OK  SideKitAudio %s  stretch +8%% ratio=%.3f keylock 440/475=%.2f\n", ver, ratio, g440 / std::max(g475, 1e-9f));
     return 0;
 }
