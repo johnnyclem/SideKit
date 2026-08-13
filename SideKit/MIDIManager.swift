@@ -147,9 +147,13 @@ final class MIDIManager: ObservableObject {
             let value = Int(bytes[2])
 
             let kind: MIDIBinding.MessageKind
-            if kindNibble == 0xB0 { kind = .controlChange }
-            else if kindNibble == 0x90 && value > 0 { kind = .noteOn }
-            else { continue }
+            if kindNibble == 0xB0 {
+                kind = .controlChange
+            } else if kindNibble == 0x90 && value > 0 {
+                kind = .noteOn
+            } else {
+                continue
+            }
 
             if let target = learningTarget {
                 let bipolar = target.contains("gain") || target.contains("eq")

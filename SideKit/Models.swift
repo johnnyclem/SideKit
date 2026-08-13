@@ -59,7 +59,7 @@ enum CompMode: String, CaseIterable, Identifiable, Codable {
 }
 
 enum FxId: String, CaseIterable, Identifiable, Codable {
-    case filter, delay, tape, repeat, tremolo, siren
+    case filter, delay, tape, `repeat`, tremolo, siren
     var id: String { rawValue }
     var short: String {
         switch self {
@@ -120,7 +120,7 @@ struct Track: Identifiable, Equatable {
     let pattern: Pattern
     /// Non-nil for user-imported files (SK-010/SK-035); nil for bundled demo tracks,
     /// which fall back to the pattern synth voice below.
-    var fileURL: URL? = nil
+    var fileURL: URL?
     var bpmIsEstimated: Bool = false
 
     var isImported: Bool { fileURL != nil }
@@ -143,7 +143,7 @@ struct ChannelState: Equatable {
     var bpm: Double = 120
     var pitch: Double = 0
     var playing: Bool = false
-    var trackId: String? = nil
+    var trackId: String?
     var deckPos: Double = 0
 
     /// Hot cues (SK-034): 4 slots, each an absolute track position in seconds, or nil if unset.

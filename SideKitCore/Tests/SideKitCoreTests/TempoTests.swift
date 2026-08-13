@@ -50,10 +50,11 @@ final class TempoTests: XCTestCase {
         XCTAssertEqual(Tempo.nearestAutoLoopLength(0.1), 0.25)
     }
 
-    func testEstimateBpmFromRegularOnsets() {
+    func testEstimateBpmFromRegularOnsets() throws {
         // 0.5s spacing == 120 BPM
         let onsets = (0..<12).map { Double($0) * 0.5 }
-        XCTAssertEqual(Tempo.estimateBpm(onsetTimes: onsets), 120, accuracy: 0.5)
+        let bpm = try XCTUnwrap(Tempo.estimateBpm(onsetTimes: onsets))
+        XCTAssertEqual(bpm, 120, accuracy: 0.5)
     }
 
     func testEstimateBpmReturnsNilForSparseOnsets() {

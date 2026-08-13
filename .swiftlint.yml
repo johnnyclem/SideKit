@@ -5,6 +5,20 @@ excluded:
 disabled_rules:
   - todo
   - line_length
+  # "master"/"master bus"/"master BPM" etc. are standard audio-engineering terms
+  # throughout this codebase (mixer master out, master BPM) — not exclusionary language.
+  - inclusive_language
+  # Trailing commas on multi-line collection literals are used deliberately here.
+  - trailing_comma
+  # Structural-size rules below are disabled rather than threshold-tuned: this is the
+  # first CI pass on a dense, stateful engine/view-model codebase (MixerStore,
+  # AudioEngine, DecksView) where a few files are legitimately large/complex — see
+  # docs/STATUS.md. Revisit with real thresholds once the codebase settles.
+  - cyclomatic_complexity
+  - type_body_length
+  - file_length
+  - function_body_length
+  - large_tuple
 
 opt_in_rules:
   - empty_count

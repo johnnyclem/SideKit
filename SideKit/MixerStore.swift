@@ -30,7 +30,7 @@ final class MixerStore: ObservableObject {
     @Published var meters: (ch1: Double, ch2: Double, master: Double) = (0, 0, 0)
     @Published var hardwareName: String?
     @Published var mixMode: MixMode = .internalMix
-    @Published var loopFlash: Int? = nil
+    @Published var loopFlash: Int?
     @Published var showOnboarding: Bool = !UserDefaults.standard.bool(forKey: "sk.onboarded")
     @Published var showPaywall: Bool = false
 
