@@ -20,7 +20,7 @@ First tap Play to unlock the audio session. Deck A loads a bundled 48 kHz WAV. I
 | Tab | Native behavior |
 |---|---|
 | **Mixer** | Dual channel strips, gain / 3-band EQ knobs, faders, cue / mute / FX, compressor menu, DJ·Studio·Param EQ styles, crossfader, master / cue / phones |
-| **Decks** | Dual virtual decks, waveform + seek, pitch ±8%, SYNC, beat-match, playhead |
+| **Decks** | Dual virtual decks, waveform + frame-accurate seek, restart, 5 ms fades, pitch ±8%, SYNC |
 | **FX** | Six punch-in FX (filter, delay, tape, repeat, tremolo, siren), force pad X/Y, depth, series/parallel |
 | **Library** | Demo tracks + Files import, search, load → Deck A/B, codec error banner |
 | **Link** | USB route watch for Sidekick / EP-136 / class-compliant USB, mix mode, 8×4 matrix |
@@ -29,7 +29,7 @@ Audio is **AVAudioEngine** (48 kHz I/O + FX) pulling a C++ render callback. Deco
 
 Hardware detection uses `AVAudioSession` route changes. Plug in a Sidekick over USB-C and Link should flip to connected when the port name matches.
 
-## C++ audio core (SK-001 / SK-004 / SK-010)
+## C++ audio core (SK-001 / SK-004 / SK-010 / SK-011)
 
 `SideKitAudio` is a static library linked into the app.
 
@@ -37,12 +37,13 @@ Hardware detection uses `AVAudioSession` route changes. Plug in a Sidekick over 
 - Lock-free SPSC command queue (`RingBuffer.hpp`) so the UI thread never touches the render callback
 - Dual-voice pattern sequencer + 3-band EQ + XF/master in `Engine::render`
 - File clips: ExtAudioFile (device) / WAV+resample (host) → 48 kHz stereo float, double-buffered load
+- Transport: 5 ms equal-power fade, frame-accurate seek, restart, playhead mirrors engine
 - Swift posts transport/mix/EQ/clips over the SPSC queue only
-- Host check: `make -C SideKitAudio test` (silence, kick, WAV decode, 44.1→48k, clip play, no-alloc)
+- Host check: `make -C SideKitAudio test`
 
 On first Play, the console should print:
 
-`SideKit C++ 0.3.0-sk010 warmup frames=64 t=64 silent=true`
+`SideKit C++ 0.4.0-sk011 warmup frames=64 t=64 silent=true`
 
 Signing: **Automatic** / Apple Development. Select your Team in Xcode (Signing & Capabilities). `DEVELOPMENT_TEAM` is left blank on purpose.
 
@@ -75,9 +76,9 @@ SideKitAudio/
 
 ## Roadmap
 
-Sprint tickets: `docs/SPRINTS.md`. **SK-001, SK-004, SK-010 are done.** Next:
+Sprint tickets: `docs/SPRINTS.md`. **SK-001, SK-004, SK-010, SK-011 are done.** Next:
 
-- SK-011 deck transport (play/pause/restart/seek fades)
+- SK-012 pitch ±8% time-stretch
 - SK-025/026 real USB 8×4 mix modes
 - SK-040 Core MIDI maps
 - SK-044 StoreKit Pro unlock

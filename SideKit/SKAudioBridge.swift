@@ -71,6 +71,14 @@ final class SKAudioBridge {
         sk_engine_set_clip_position(engine, ch, normalized)
     }
 
+    func seekFrames(ch: UInt32, frame: UInt32) {
+        sk_engine_seek_frames(engine, ch, frame)
+    }
+
+    func restart(ch: UInt32) {
+        sk_engine_restart(engine, ch)
+    }
+
     func warmup() -> SKRenderInfo {
         var scratch = [Float](repeating: 0, count: 64 * 2)
         scratch.withUnsafeMutableBufferPointer { ptr in

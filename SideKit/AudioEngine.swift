@@ -102,10 +102,22 @@ final class AudioEngine {
         cppBridge.setClipPosition(ch: UInt32(ch), normalized: Float(min(1, max(0, normalized))))
     }
 
+    func seekFrames(ch: Int, frame: UInt32) {
+        cppBridge.seekFrames(ch: UInt32(ch), frame: frame)
+    }
+
+    func restart(ch: Int) {
+        cppBridge.restart(ch: UInt32(ch))
+    }
+
     func clipPlayhead(ch: Int) -> (pos: Double, duration: Double)? {
         let info = cppBridge.clipInfo(ch: UInt32(ch))
         guard info.loaded != 0, info.frames > 0 else { return nil }
         return (Double(info.playhead) / Double(info.frames), Double(info.frames) / 48_000)
+    }
+
+    func transportState(ch: Int) -> SKClipInfo {
+        cppBridge.clipInfo(ch: UInt32(ch))
     }
 
     func decodeFile(url: URL) async throws -> DecodedClip {

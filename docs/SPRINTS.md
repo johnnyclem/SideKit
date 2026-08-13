@@ -136,7 +136,7 @@ S0 Foundation → S1 Deck A → S2 Mixer+USB → S3 FX+Library → S4 Hardware+P
   - Resample non-48k files offline on load
   - Error UI for unsupported codecs
 
-#### SK-011 — Deck A transport: play, pause, restart, seek
+#### SK-011 — Deck A transport: play, pause, restart, seek ✅
 - **Epic:** Decks · **PRD:** PRD-03 D-01 · **Owner:** Audio eng
 - **Priority/Size/Points:** P0 / M / 5
 - **Depends on:** SK-010

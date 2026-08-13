@@ -47,8 +47,8 @@ static void fillSine(std::vector<float> &buf, uint32_t frames, uint32_t ch, doub
 
 int main() {
     const char *ver = sk_engine_version();
-    if (!ver || std::strstr(ver, "sk010") == nullptr) {
-        return fail("version should be sk010");
+    if (!ver || std::strstr(ver, "sk011") == nullptr) {
+        return fail("version should be sk011");
     }
 
     SKEngine *eng = sk_engine_create(48000.0, 2);
@@ -192,7 +192,89 @@ int main() {
         return 1;
     }
 
+    // 7. SK-011: frame-accurate seek while stopped.
+    sk_engine_set_transport(eng, 1, 0, 0, 120.f);
+    for (int i = 0; i < 4; ++i) {
+        sk_engine_render(eng, buf.data(), 512);
+    }
+    sk_engine_seek_frames(eng, 1, 1234);
+    sk_engine_render(eng, buf.data(), 64);
+    clip = sk_engine_clip_info(eng, 1);
+    if (clip.playhead != 1234) {
+        std::fprintf(stderr, "FAIL: stopped seek playhead=%u want 1234\n", clip.playhead);
+        return 1;
+    }
+    if (clip.playing) {
+        return fail("stopped seek should not start playback");
+    }
+
+    // 8. Seek while playing: after one quantum, playhead is target + frames (±1).
+    sk_engine_set_transport(eng, 1, 1, 0, 120.f);
+    sk_engine_seek_frames(eng, 1, 5000);
+    sk_engine_render(eng, buf.data(), 256);
+    clip = sk_engine_clip_info(eng, 1);
+    const int drift = static_cast<int>(clip.playhead) - static_cast<int>(5000 + 256);
+    if (std::abs(drift) > 1 || !clip.playing) {
+        std::fprintf(stderr, "FAIL: playing seek playhead=%u playing=%d drift=%d\n", clip.playhead, clip.playing,
+                     drift);
+        return 1;
+    }
+
+    // 9. Restart → playhead 0 after one quantum (then advances if playing).
+    sk_engine_restart(eng, 1);
+    sk_engine_render(eng, buf.data(), 128);
+    clip = sk_engine_clip_info(eng, 1);
+    if (clip.playhead > 128 + 1) {
+        std::fprintf(stderr, "FAIL: restart playhead=%u\n", clip.playhead);
+        return 1;
+    }
+
+    // 10. Equal-power fade-in ≤ 5 ms, first sample near 0.
+    sk_engine_set_transport(eng, 1, 0, 0, 120.f);
+    for (int i = 0; i < 4; ++i) {
+        sk_engine_render(eng, buf.data(), 512);
+    }
+    sk_engine_seek_frames(eng, 1, 0);
+    sk_engine_set_channel_mix(eng, 1, 0.f, 1.f, 0);
+    sk_engine_set_master(eng, 1.f);
+    sk_engine_set_crossfader(eng, 0.f);
+    sk_engine_set_transport(eng, 1, 1, 0, 120.f);
+    std::vector<float> fade(480 * 2, 0.f);
+    sk_engine_render(eng, fade.data(), 240);
+    const float s0 = std::fabs(fade[0]);
+    const float sMid = std::fabs(fade[120 * 2]);
+    const float sEnd = std::fabs(fade[239 * 2]);
+    if (s0 > 0.02f) {
+        std::fprintf(stderr, "FAIL: fade-in click s0=%f\n", s0);
+        return 1;
+    }
+    if (!(s0 < sMid && sMid < sEnd + 0.05f) || sEnd < 0.05f) {
+        std::fprintf(stderr, "FAIL: fade-in shape s0=%f mid=%f end=%f\n", s0, sMid, sEnd);
+        return 1;
+    }
+
+    // 11. Fade-out ≤ 5 ms → silence, playing=0 after one extra quantum.
+    sk_engine_set_transport(eng, 1, 0, 0, 120.f);
+    std::vector<float> fadeOut(480 * 2, 0.f);
+    sk_engine_render(eng, fadeOut.data(), 240);
+    const float o0 = std::fabs(fadeOut[0]);
+    const float oEnd = std::fabs(fadeOut[239 * 2]);
+    if (oEnd > 0.02f) {
+        std::fprintf(stderr, "FAIL: fade-out tail oEnd=%f\n", oEnd);
+        return 1;
+    }
+    if (o0 + 0.01f < oEnd) {
+        std::fprintf(stderr, "FAIL: fade-out rose o0=%f oEnd=%f\n", o0, oEnd);
+        return 1;
+    }
+    sk_engine_render(eng, buf.data(), 64);
+    clip = sk_engine_clip_info(eng, 1);
+    if (clip.playing) {
+        return fail("playing still set after fade-out");
+    }
+
     sk_engine_destroy(eng);
-    std::printf("OK  SideKitAudio %s  decode/resample/clip  kick=%.3f clip=%.3f rs=%u\n", ver, kick, clip_peak, out_n);
+    std::printf("OK  SideKitAudio %s  decode/resample/clip + transport  kick=%.3f clip=%.3f rs=%u\n", ver, kick,
+                clip_peak, out_n);
     return 0;
 }

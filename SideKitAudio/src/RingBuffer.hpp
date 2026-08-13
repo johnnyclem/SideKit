@@ -51,6 +51,8 @@ enum class ParamId : uint8_t {
     LoadClip = 9,
     ClearClip = 10,
     ClipSeek = 11,
+    SeekFrames = 12,
+    Restart = 13,
 };
 
 struct ParamCmd {
@@ -60,6 +62,7 @@ struct ParamCmd {
     float b;
     float c;
     float d;
+    uint32_t u;
 };
 
 } // namespace sidekit

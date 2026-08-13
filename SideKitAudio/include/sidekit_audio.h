@@ -22,6 +22,8 @@ typedef struct SKClipInfo {
     uint32_t playhead;
     uint32_t channels;
     int loaded;
+    int playing;
+    int fading;
 } SKClipInfo;
 
 enum {
@@ -36,6 +38,9 @@ enum {
     SK_OK = 1,
     SK_ERR = 0
 };
+
+/** Equal-power start/stop fade length. */
+enum { SK_FADE_MS = 5 };
 
 const char *sk_engine_version(void);
 
@@ -53,25 +58,20 @@ void sk_engine_set_transport(SKEngine *engine, uint32_t ch, int playing, uint32_
 void sk_engine_set_test_tone(SKEngine *engine, int enabled, float hz);
 void sk_engine_set_output_gain(SKEngine *engine, float linear);
 
-/**
- * Load interleaved float32 PCM onto a deck. Copied on the caller thread
- * into a double-buffered slot; the audio thread only swaps a pointer.
- * `channels` 1 or 2. Sample rate must already be the engine rate (48 kHz).
- * Returns SK_OK / SK_ERR.
- */
 int sk_engine_load_clip(SKEngine *engine, uint32_t ch, const float *interleaved, uint32_t frames, uint32_t channels);
 void sk_engine_clear_clip(SKEngine *engine, uint32_t ch);
 SKClipInfo sk_engine_clip_info(const SKEngine *engine, uint32_t ch);
 void sk_engine_set_clip_position(SKEngine *engine, uint32_t ch, float normalized);
 
-/** Offline linear resample → interleaved stereo. Returns frames written, or 0. */
+/** Frame-accurate seek. Lands on `frame` (clamped) after the next render consume. */
+void sk_engine_seek_frames(SKEngine *engine, uint32_t ch, uint32_t frame);
+
+/** Return playhead to 0. Keeps playing (with a 5 ms fade-in) if the deck was on. */
+void sk_engine_restart(SKEngine *engine, uint32_t ch);
+
 uint32_t sk_resample_stereo(const float *in, uint32_t in_frames, uint32_t in_ch, double in_sr,
                             float *out, uint32_t out_capacity, double out_sr);
 
-/**
- * Host / fallback WAV decode (PCM 16/24/32 or float32). Allocates *out.
- * Free with sk_pcm_free. Returns SK_OK / SK_ERR.
- */
 int sk_wav_decode_file(const char *path, float **out_interleaved, uint32_t *frames, uint32_t *channels, double *sr);
 void sk_pcm_free(float *p);
 

@@ -17,6 +17,10 @@ float equalPower(float x) {
 }
 } // namespace
 
+ParamCmd makeCmd(ParamId id, uint8_t ch, float a = 0, float b = 0, float c = 0, float d = 0, uint32_t u = 0) {
+    return ParamCmd{id, ch, a, b, c, d, u};
+}
+
 Engine::Engine(double sample_rate, uint32_t channels)
     : sample_rate_(sample_rate > 0 ? sample_rate : 48000.0)
     , channels_(channels == 0 ? 2 : channels) {
@@ -46,19 +50,21 @@ int Engine::loadClip(uint8_t ch, const float *interleaved, uint32_t frames, uint
     delete[] b.pcm[dest];
     b.pcm[dest] = buf;
     b.frames[dest] = frames;
-    post({ParamId::LoadClip, ch, static_cast<float>(dest), static_cast<float>(frames), 0, 0});
+    post(makeCmd(ParamId::LoadClip, ch, static_cast<float>(dest), static_cast<float>(frames)));
     return 1;
 }
 
-void Engine::requestClearClip(uint8_t ch) { post({ParamId::ClearClip, ch, 0, 0, 0, 0}); }
+void Engine::requestClearClip(uint8_t ch) { post(makeCmd(ParamId::ClearClip, ch)); }
 
 SKClipInfo Engine::clipInfo(uint8_t ch) const {
     const auto &v = voice(ch);
     SKClipInfo info{};
     info.frames = v.clip_frames;
-    info.playhead = static_cast<uint32_t>(v.clip_pos);
+    info.playhead = v.playheadFrame();
     info.channels = 2;
     info.loaded = v.has_clip ? 1 : 0;
+    info.playing = v.want_playing ? 1 : 0;
+    info.fading = v.fade_dir != 0 ? 1 : 0;
     return info;
 }
 
@@ -122,6 +128,12 @@ void Engine::consumeCommands() {
             break;
         case ParamId::ClipSeek:
             voice(cmd.ch).seekNorm(cmd.a);
+            break;
+        case ParamId::SeekFrames:
+            voice(cmd.ch).seekFrames(cmd.u);
+            break;
+        case ParamId::Restart:
+            voice(cmd.ch).restart();
             break;
         }
     }
@@ -196,7 +208,7 @@ uint32_t Engine::render(float *interleaved, uint32_t frames) {
 
 extern "C" {
 
-const char *sk_engine_version(void) { return "0.3.0-sk010"; }
+const char *sk_engine_version(void) { return "0.4.0-sk011"; }
 
 SKEngine *sk_engine_create(double sample_rate, uint32_t channels) {
     auto *engine = new (std::nothrow) sidekit::Engine(sample_rate, channels);
@@ -223,35 +235,31 @@ SKRenderInfo sk_engine_last_info(const SKEngine *engine) {
 
 void sk_engine_set_master(SKEngine *engine, float linear) {
     if (engine) {
-        reinterpret_cast<sidekit::Engine *>(engine)->post({sidekit::ParamId::Master, 0, linear, 0, 0, 0});
+        reinterpret_cast<sidekit::Engine *>(engine)->post(sidekit::makeCmd(sidekit::ParamId::Master, 0, linear));
     }
 }
 
 void sk_engine_set_crossfader(SKEngine *engine, float xf) {
     if (engine) {
-        reinterpret_cast<sidekit::Engine *>(engine)->post({sidekit::ParamId::Crossfader, 0, xf, 0, 0, 0});
+        reinterpret_cast<sidekit::Engine *>(engine)->post(sidekit::makeCmd(sidekit::ParamId::Crossfader, 0, xf));
     }
 }
 
 void sk_engine_set_channel_mix(SKEngine *engine, uint32_t ch, float gain_db, float fader, int mute) {
     if (engine) {
-        reinterpret_cast<sidekit::Engine *>(engine)->post(
-            {sidekit::ParamId::ChannelMix, static_cast<uint8_t>(ch), gain_db, fader, mute ? 1.f : 0.f, 0});
+        reinterpret_cast<sidekit::Engine *>(engine)->post(sidekit::makeCmd(sidekit::ParamId::ChannelMix, static_cast<uint8_t>(ch), gain_db, fader, mute ? 1.f : 0.f));
     }
 }
 
 void sk_engine_set_channel_eq(SKEngine *engine, uint32_t ch, float lo, float mid, float hi, float style_mul) {
     if (engine) {
-        reinterpret_cast<sidekit::Engine *>(engine)->post(
-            {sidekit::ParamId::ChannelEQ, static_cast<uint8_t>(ch), lo, mid, hi, style_mul});
+        reinterpret_cast<sidekit::Engine *>(engine)->post(sidekit::makeCmd(sidekit::ParamId::ChannelEQ, static_cast<uint8_t>(ch), lo, mid, hi, style_mul));
     }
 }
 
 void sk_engine_set_transport(SKEngine *engine, uint32_t ch, int playing, uint32_t pattern, float bpm) {
     if (engine) {
-        reinterpret_cast<sidekit::Engine *>(engine)->post(
-            {sidekit::ParamId::Transport, static_cast<uint8_t>(ch), playing ? 1.f : 0.f,
-             static_cast<float>(pattern), bpm, 0});
+        reinterpret_cast<sidekit::Engine *>(engine)->post(sidekit::makeCmd(sidekit::ParamId::Transport, static_cast<uint8_t>(ch), playing ? 1.f : 0.f, static_cast<float>(pattern), bpm));
     }
 }
 
@@ -260,13 +268,13 @@ void sk_engine_set_test_tone(SKEngine *engine, int enabled, float hz) {
         return;
     }
     auto *e = reinterpret_cast<sidekit::Engine *>(engine);
-    e->post({sidekit::ParamId::TestToneEnable, 0, enabled ? 1.f : 0.f, 0, 0, 0});
-    e->post({sidekit::ParamId::TestToneHz, 0, hz, 0, 0, 0});
+    e->post(sidekit::makeCmd(sidekit::ParamId::TestToneEnable, 0, enabled ? 1.f : 0.f));
+    e->post(sidekit::makeCmd(sidekit::ParamId::TestToneHz, 0, hz));
 }
 
 void sk_engine_set_output_gain(SKEngine *engine, float linear) {
     if (engine) {
-        reinterpret_cast<sidekit::Engine *>(engine)->post({sidekit::ParamId::OutputGain, 0, linear, 0, 0, 0});
+        reinterpret_cast<sidekit::Engine *>(engine)->post(sidekit::makeCmd(sidekit::ParamId::OutputGain, 0, linear));
     }
 }
 
@@ -285,15 +293,26 @@ void sk_engine_clear_clip(SKEngine *engine, uint32_t ch) {
 
 SKClipInfo sk_engine_clip_info(const SKEngine *engine, uint32_t ch) {
     if (!engine) {
-        return SKClipInfo{0, 0, 2, 0};
+        return SKClipInfo{0, 0, 2, 0, 0, 0};
     }
     return reinterpret_cast<const sidekit::Engine *>(engine)->clipInfo(static_cast<uint8_t>(ch));
 }
 
 void sk_engine_set_clip_position(SKEngine *engine, uint32_t ch, float normalized) {
     if (engine) {
-        reinterpret_cast<sidekit::Engine *>(engine)->post(
-            {sidekit::ParamId::ClipSeek, static_cast<uint8_t>(ch), normalized, 0, 0, 0});
+        reinterpret_cast<sidekit::Engine *>(engine)->post(sidekit::makeCmd(sidekit::ParamId::ClipSeek, static_cast<uint8_t>(ch), normalized));
+    }
+}
+
+void sk_engine_seek_frames(SKEngine *engine, uint32_t ch, uint32_t frame) {
+    if (engine) {
+        reinterpret_cast<sidekit::Engine *>(engine)->post(sidekit::makeCmd(sidekit::ParamId::SeekFrames, static_cast<uint8_t>(ch), 0, 0, 0, 0, frame));
+    }
+}
+
+void sk_engine_restart(SKEngine *engine, uint32_t ch) {
+    if (engine) {
+        reinterpret_cast<sidekit::Engine *>(engine)->post(sidekit::makeCmd(sidekit::ParamId::Restart, static_cast<uint8_t>(ch)));
     }
 }
 

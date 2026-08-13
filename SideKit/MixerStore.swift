@@ -106,6 +106,11 @@ final class MixerStore: ObservableObject {
         audio.seekClip(ch: ch, normalized: clamped)
     }
 
+    func restartDeck(_ ch: Int) {
+        if ch == 1 { ch1.deckPos = 0 } else { ch2.deckPos = 0 }
+        audio.restart(ch: ch)
+    }
+
     func togglePlay(_ ch: Int) {
         if ch == 1 { ch1.playing.toggle() } else { ch2.playing.toggle() }
         Task {
@@ -261,8 +266,12 @@ final class MixerStore: ObservableObject {
 
     func advanceDecks(_ dt: Double) {
         func step(_ index: Int, _ ch: inout ChannelState) {
-            if let ph = audio.clipPlayhead(ch: index) {
-                ch.deckPos = ph.pos
+            let st = audio.transportState(ch: index)
+            if st.loaded != 0, st.frames > 0 {
+                ch.deckPos = Double(st.playhead) / Double(st.frames)
+                if st.playing == 0 {
+                    ch.playing = false
+                }
                 return
             }
             guard ch.playing, let track = track(id: ch.trackId) else { return }

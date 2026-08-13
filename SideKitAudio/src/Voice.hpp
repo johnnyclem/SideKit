@@ -11,6 +11,11 @@ namespace sidekit {
 
 enum class Wave : uint8_t { Sine, Saw, Tri, Noise };
 
+inline uint32_t fadeFramesFor(float sr) {
+    const auto n = static_cast<uint32_t>(std::lround(static_cast<double>(sr) * (SK_FADE_MS / 1000.0)));
+    return n < 1 ? 1 : n;
+}
+
 struct Partial {
     bool active = false;
     Wave wave = Wave::Sine;
@@ -27,8 +32,10 @@ struct ChannelVoice {
     static constexpr int kPartials = 6;
 
     bool playing = false;
+    bool want_playing = false;
     uint8_t pattern = 0;
     float bpm = 120.f;
+    float sr_ = 48000.f;
     double step_accum = 0;
     double samples_per_step = 48000.0 * 60.0 / 120.0 / 4.0;
     int step = 0;
@@ -41,17 +48,70 @@ struct ChannelVoice {
     float level = 0;
     float peak = 0;
 
-    const float *clip_pcm = nullptr; // interleaved stereo, owned by Engine clip bank
+    const float *clip_pcm = nullptr;
     uint32_t clip_frames = 0;
     double clip_pos = 0;
     bool has_clip = false;
+
+    int fade_dir = 0; // +1 in, -1 out, 0 idle
+    uint32_t fade_i = 0;
+    uint32_t fade_len = 240;
 
     Biquad lo, mid, hi;
     Partial parts[kPartials]{};
 
     void setBpm(float sr, float new_bpm) {
+        sr_ = sr;
         bpm = std::clamp(new_bpm, 40.f, 220.f);
         samples_per_step = static_cast<double>(sr) * 60.0 / static_cast<double>(bpm) / 4.0;
+        fade_len = fadeFramesFor(sr);
+    }
+
+    void beginFadeIn() {
+        fade_len = fadeFramesFor(sr_);
+        fade_i = 0;
+        fade_dir = 1;
+    }
+
+    void beginFadeOut() {
+        fade_len = fadeFramesFor(sr_);
+        fade_i = 0;
+        fade_dir = -1;
+    }
+
+    float fadeGain() const {
+        if (fade_dir == 0) {
+            return playing ? 1.f : 0.f;
+        }
+        const float t = static_cast<float>(fade_i) / static_cast<float>(fade_len < 1 ? 1 : fade_len);
+        const float clamped = std::clamp(t, 0.f, 1.f);
+        const float half_pi = 1.5707963267948966f;
+        if (fade_dir > 0) {
+            return std::sin(half_pi * clamped);
+        }
+        return std::cos(half_pi * clamped);
+    }
+
+    void finishFade() {
+        if (fade_dir < 0) {
+            playing = false;
+            want_playing = false;
+            for (auto &p : parts) {
+                p.active = false;
+            }
+        }
+        fade_dir = 0;
+        fade_i = 0;
+    }
+
+    void stepFade() {
+        if (fade_dir == 0) {
+            return;
+        }
+        ++fade_i;
+        if (fade_i >= fade_len) {
+            finishFade();
+        }
     }
 
     void attachClip(const float *pcm, uint32_t frames) {
@@ -59,6 +119,8 @@ struct ChannelVoice {
         clip_frames = frames;
         clip_pos = 0;
         has_clip = pcm != nullptr && frames > 0;
+        fade_dir = 0;
+        fade_i = 0;
         for (auto &p : parts) {
             p.active = false;
         }
@@ -71,39 +133,84 @@ struct ChannelVoice {
         has_clip = false;
     }
 
+    uint32_t playheadFrame() const {
+        if (clip_frames == 0) {
+            return 0;
+        }
+        if (clip_pos <= 0) {
+            return 0;
+        }
+        if (clip_pos >= clip_frames) {
+            return clip_frames;
+        }
+        return static_cast<uint32_t>(clip_pos);
+    }
+
+    void seekFrames(uint32_t frame) {
+        if (!has_clip || clip_frames == 0) {
+            return;
+        }
+        if (frame >= clip_frames) {
+            frame = clip_frames - 1;
+        }
+        clip_pos = static_cast<double>(frame);
+        if (playing || want_playing) {
+            beginFadeIn();
+        }
+    }
+
     void seekNorm(float n) {
         if (!has_clip || clip_frames == 0) {
             return;
         }
         n = std::clamp(n, 0.f, 1.f);
-        clip_pos = static_cast<double>(n) * static_cast<double>(clip_frames);
-        if (clip_pos >= clip_frames) {
-            clip_pos = clip_frames > 0 ? clip_frames - 1 : 0;
+        uint32_t frame = 0;
+        if (n >= 1.f) {
+            frame = clip_frames - 1;
+        } else if (n > 0.f) {
+            frame = static_cast<uint32_t>(std::llround(static_cast<double>(n) * static_cast<double>(clip_frames)));
+            if (frame >= clip_frames) {
+                frame = clip_frames - 1;
+            }
+        }
+        seekFrames(frame);
+    }
+
+    void restart() {
+        clip_pos = 0;
+        step = 0;
+        step_accum = 0;
+        if (want_playing || playing) {
+            want_playing = true;
+            playing = true;
+            beginFadeIn();
         }
     }
 
     void start(float sr, uint8_t pat, float new_bpm) {
-        playing = true;
-        pattern = pat;
         setBpm(sr, new_bpm);
-        if (has_clip) {
-            if (clip_pos >= clip_frames) {
-                clip_pos = 0;
+        pattern = pat;
+        want_playing = true;
+        playing = true;
+        if (has_clip && clip_pos >= clip_frames) {
+            clip_pos = 0;
+        }
+        if (!has_clip) {
+            step = 0;
+            step_accum = 0;
+            for (auto &p : parts) {
+                p.active = false;
             }
-            return;
         }
-        step = 0;
-        step_accum = 0;
-        for (auto &p : parts) {
-            p.active = false;
-        }
+        beginFadeIn();
     }
 
     void stop() {
-        playing = false;
-        for (auto &p : parts) {
-            p.active = false;
+        want_playing = false;
+        if (!playing && fade_dir == 0) {
+            return;
         }
+        beginFadeOut();
     }
 
     void updateEQ(float sr) {
@@ -203,10 +310,14 @@ struct ChannelVoice {
             return 0.f;
         }
         if (clip_pos >= clip_frames) {
-            clip_pos = 0; // loop until SK-011 adds one-shot
+            clip_pos = clip_frames;
+            want_playing = false;
+            playing = false;
+            fade_dir = 0;
+            return 0.f;
         }
         const auto i0 = static_cast<uint32_t>(clip_pos);
-        const uint32_t i1 = (i0 + 1 < clip_frames) ? i0 + 1 : 0;
+        const uint32_t i1 = (i0 + 1 < clip_frames) ? i0 + 1 : i0;
         const float frac = static_cast<float>(clip_pos - static_cast<double>(i0));
         const float l = clip_pcm[i0 * 2] + (clip_pcm[i1 * 2] - clip_pcm[i0 * 2]) * frac;
         const float r = clip_pcm[i0 * 2 + 1] + (clip_pcm[i1 * 2 + 1] - clip_pcm[i0 * 2 + 1]) * frac;
@@ -215,9 +326,20 @@ struct ChannelVoice {
     }
 
     float tick(float sr) {
-        float s = 0.f;
+        sr_ = sr;
+        fade_len = fadeFramesFor(sr);
 
-        if (has_clip && playing) {
+        if (has_clip && playing && fade_dir == 0 && clip_frames > 0) {
+            const auto remain = clip_frames - playheadFrame();
+            if (remain > 0 && remain <= fade_len) {
+                beginFadeOut();
+            }
+        }
+
+        float s = 0.f;
+        const bool audible = playing || fade_dir != 0;
+
+        if (has_clip && audible) {
             s = readClip();
         } else {
             if (playing && !has_clip) {
@@ -265,6 +387,9 @@ struct ChannelVoice {
                 }
             }
         }
+
+        s *= fadeGain();
+        stepFade();
 
         s = hi.process(mid.process(lo.process(s)));
         s *= level;

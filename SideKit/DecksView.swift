@@ -39,6 +39,7 @@ struct DecksView: View {
                 onToggle: { store.togglePlay(1) },
                 onPitch: { p in store.updateChannel(1) { $0.pitch = p } },
                 onSeek: { pos in store.seekDeck(1, pos) },
+                onRestart: { store.restartDeck(1) },
                 onSync: { store.syncBpm(from: 1) }
             )
             DeckPanelView(
@@ -49,6 +50,7 @@ struct DecksView: View {
                 onToggle: { store.togglePlay(2) },
                 onPitch: { p in store.updateChannel(2) { $0.pitch = p } },
                 onSeek: { pos in store.seekDeck(2, pos) },
+                onRestart: { store.restartDeck(2) },
                 onSync: { store.syncBpm(from: 2) }
             )
         }
@@ -64,6 +66,7 @@ struct DeckPanelView: View {
     let onToggle: () -> Void
     let onPitch: (Double) -> Void
     let onSeek: (Double) -> Void
+    let onRestart: () -> Void
     let onSync: () -> Void
 
     private var track: Track? { store.track(id: channel.trackId) }
@@ -146,7 +149,7 @@ struct DeckPanelView: View {
             HorizontalMeter(level: meter)
 
             HStack(spacing: 8) {
-                circleBtn("backward.end.fill") { onSeek(0) }
+                circleBtn("backward.end.fill") { onRestart() }
                 Button(action: onToggle) {
                     Image(systemName: channel.playing ? "pause.fill" : "play.fill")
                         .font(.system(size: 18, weight: .semibold))
