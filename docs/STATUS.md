@@ -12,10 +12,10 @@ Legend: ✅ done this PR · ➖ pre-existing (before this PR) · ◐ partial/UI-
 ## Sprint 0 — Foundation
 | Ticket | Status | Notes |
 |---|---|---|
-| SK-001 Xcode workspace | ➖ | Pre-existing. |
+| SK-001 Xcode workspace | ➖ | Pre-existing; landed on `main` mid-PR as a real `SideKitAudio` C++ static lib (lock-free ring buffer, hello render callback) merged into this branch. |
 | SK-002 CI | ✅ | `.github/workflows/ci.yml`: SwiftLint, `swift test` on `SideKitCore`, `xcodebuild build`. Added the shared scheme this needed. |
 | SK-003 Design tokens | ➖ | Pre-existing `Theme.swift`. |
-| SK-004 AudioEngine skeleton | ◐ | Swift/AVAudioEngine, not C++. Real, functional, tested informally by inspection only — see ARCHITECTURE.md. |
+| SK-004 AudioEngine skeleton | ◐ | Deck/mixer DSP is Swift/AVAudioEngine, not C++. The C++ `SideKitAudio` lib (SK-001) is wired in and pulled every render quantum, but only renders silence/hello callback — no real DSP moved into `Engine::render` yet. |
 | SK-005 App Store Connect shell | ⛔ | Needs a real Apple Developer / ASC account. |
 | SK-006 Trademark screen | ⛔ | Needs a human legal search; not something to fabricate. |
 

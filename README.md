@@ -37,6 +37,24 @@ including what's still a UI-only stub (compressor DSP, mix-mode routing, per-cha
 bus) and what needs a human (App Store Connect, a physical Sidekick, legal/trademark,
 marketing assets).
 
+## C++ audio core (SK-001)
+
+`SideKitAudio` is a static library linked into the app.
+
+- C ABI in `SideKitAudio/include/sidekit_audio.h`
+- Lock-free SPSC command queue (`RingBuffer.hpp`) so the UI thread never touches the render callback
+- Hello render callback fills interleaved float32; silence by default
+- Swift `SKAudioBridge` + `AVAudioSourceNode` pull the callback every quantum
+- Host check (Linux/macOS, no Xcode): `make -C SideKitAudio test`
+
+On first Play, the console should print:
+
+`SideKit C++ 0.1.0-sk001 warmup frames=64 t=64`
+
+Signing: **Automatic** / Apple Development. Select your Team in Xcode (Signing & Capabilities). `DEVELOPMENT_TEAM` is left blank on purpose.
+
+Shared scheme: `SideKit.xcodeproj/xcshareddata/xcschemes/SideKit.xcscheme` (Debug run, Release profile/archive). Builds `libSideKitAudio.a` first.
+
 ## Project layout
 
 ```
@@ -45,7 +63,8 @@ SideKit/
   SideKitApp.swift        App entry
   RootView.swift           Portrait/iPad chrome + tab bar
   MixerStore.swift         Observable session state
-  AudioEngine.swift        AVAudioEngine: pattern voices + real file playback
+  AudioEngine.swift        AVAudioEngine: pattern voices + real file playback + C++ source node
+  SKAudioBridge.swift      Swift face of the SideKitAudio C++ static lib
   LibraryStore.swift       Import, metadata, peaks cache, persistence
   FileImportManager.swift  Document picker wrapper
   Tempo.swift              Pure tempo/beat math (mirrors SideKitCore, tested there)
@@ -65,6 +84,11 @@ SideKit/
   DiagnosticsView.swift    Diagnostics export
   Controls.swift           Knobs, faders, meters
   Theme.swift              Hardware-adjacent tokens
+SideKitAudio/               C++ static lib (SK-001)
+  include/sidekit_audio.h  C ABI
+  src/Engine.cpp           render callback
+  src/RingBuffer.hpp       SPSC param queue
+  tests/hello_render_test.cpp
 SideKitCore/               Standalone SwiftPM package: pure tempo/MIDI-map/snapshot
                             math with `swift test` coverage (not linked into the Xcode
                             target — see ARCHITECTURE.md)
@@ -80,8 +104,15 @@ SideKitCore/               Standalone SwiftPM package: pure tempo/MIDI-map/snaps
 
 - `cd SideKitCore && swift test` — offline logic tests (tempo/crossfade math, MIDI CC
   scaling, snapshot list ops).
+- `make -C SideKitAudio test` — C++ host test for the SideKitAudio hello render callback
+  (Linux/macOS, no Xcode needed).
 - `xcodebuild build -project SideKit.xcodeproj -scheme SideKit -destination 'platform=iOS Simulator,name=iPhone 15'`
-  — compile check. Both run in CI on every PR.
+  — compile check, builds `libSideKitAudio.a` first. All three run in CI on every PR.
+
+Sprint tickets: `docs/SPRINTS.md`, status: `docs/STATUS.md`. **SK-001 is done.** Next
+for a human continuing this: SK-004 (move the demo voices into `Engine::render`), a
+first real Xcode build/device pass (this was authored without a macOS toolchain
+available), and the Sprint 5 App Store Connect / compliance tickets.
 
 ## License
 

@@ -81,6 +81,7 @@ struct LinkView: View {
                 route("iphone", "CH 1 source", store.ch1.source.label)
                 route("iphone", "CH 2 source", store.ch2.source.label)
                 route("usb.c.circle", "Master out", "Sidekick Mix / USB 7–8")
+                route("cpu", "C++ core", AudioEngine.shared.cppCoreVersion)
             }
             .padding(12)
             .skPanel()

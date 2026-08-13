@@ -8,8 +8,9 @@ SwiftUI (portrait iPhone / adaptive iPad landscape)
  MixerStore (@MainActor, ObservableObject)
        │
        ├── AudioEngine (AVAudioEngine, 48 kHz)
-       │     ch1/ch2 players → AVAudioUnitVarispeed (pitch/tempo) → 3-band EQ
-       │       → channel mixers → filter → delay → main
+       │     ch1/ch2 players → AVAudioUnitVarispeed (pitch/tempo) → 3-band EQ ─┐
+       │       → channel mixers ──────────────────────────────────────────────┤
+       │     AVAudioSourceNode → sk_engine_render() (SideKitAudio, C++) ──────┴→ dryMixer → filter → delay → main
        │     Two playback modes per channel, chosen when a track loads:
        │       • pattern  — synthesized step-sequenced demo voices (no bundled audio yet)
        │       • file     — real AVAudioFile via scheduleSegment, real seek/loop/hot cues
@@ -24,6 +25,11 @@ SwiftUI (portrait iPhone / adaptive iPad landscape)
        ├── SnapshotStore (mixer scene save/recall, UserDefaults-backed)
        ├── USBMatrixStore (8x4 matrix role persistence per mix mode)
        └── CrashReporting (opt-in, on-device MetricKit only — no third-party SDKs)
+
+SideKitAudio (static lib, C++, SK-001)
+  SpscRing<ParamCmd, 128>   UI → audio, lock-free
+  Engine::render()          no alloc, interleaved float32; hello callback only today
+  C ABI                     sidekit_audio.h, pulled via SKAudioBridge.swift
 ```
 
 Portrait lock (`UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait`) applies
@@ -32,6 +38,12 @@ two-column mixer+decks layout in `RootView` (SK-047).
 
 ## Audio engine notes
 
+- **C++ core (SK-001, done)**: `SideKitAudio` is a real static lib target with a
+  lock-free SPSC param queue and a render callback, pulled every quantum via
+  `AVAudioSourceNode` and mixed into `dryMixer` alongside the two decks. It renders
+  silence (hello callback / warmup) today — SK-004 moves real DSP into `Engine::render`.
+  Everything below (pitch, seek, loops, decode) still runs on the Swift/AVAudioEngine
+  side; the C++ core and the Swift deck engine are additive, not yet unified.
 - **Pitch/tempo (SK-012)**: `AVAudioUnitVarispeed` per channel — vinyl-style, pitch and
   tempo move together, matching the classic DJ pitch-fader behavior the tickets describe
   (SYNC sets a target *pitch*, not an independent time-stretch).
@@ -44,13 +56,11 @@ two-column mixer+decks layout in `RootView` (SK-047).
   downsample) and cached to disk; the deck view further downsamples for display.
 - **BPM (SK-014)**: reads ID3/iTunes BPM tags first; falls back to a simple energy-based
   onset detector + median inter-onset interval, folded into a 70–180 BPM range.
-- **No C++ engine yet**: PRD-01 asks for a C++ DSP core; this build stays Swift/AVFoundation
-  end-to-end (as the original prototype already committed to) rather than a partial,
-  unverifiable C++ bridge. `SideKitCore/` is a small **standalone** Swift package that holds
-  the pure tempo/MIDI-map/snapshot math with real `swift test` coverage (SK-002) — it is not
-  linked into the Xcode target (to keep the hand-authored `.pbxproj` simple/low-risk); the
-  app target carries an intentionally-mirrored copy (`SideKit/Tempo.swift` etc.) with a
-  comment pointing at the tested source.
+- **Shared pure logic**: `SideKitCore/` is a small **standalone** Swift package that
+  holds the pure tempo/MIDI-map/snapshot math with real `swift test` coverage (SK-002)
+  — it is not linked into the Xcode target (to keep the hand-authored `.pbxproj` simple);
+  the app target carries an intentionally-mirrored copy (`SideKit/Tempo.swift` etc.) with
+  a comment pointing at the tested source.
 
 ## What's simulated vs. real
 

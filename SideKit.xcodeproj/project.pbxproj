@@ -20,24 +20,38 @@
 		A1000000000000000000000B /* FXView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000B /* FXView.swift */; };
 		A1000000000000000000000C /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000C /* LibraryView.swift */; };
 		A1000000000000000000000D /* LinkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000D /* LinkView.swift */; };
+		A10000000000000000000010 /* SKAudioBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000010 /* SKAudioBridge.swift */; };
 		A1000000000000000000000E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000E /* Assets.xcassets */; };
 		A1000000000000000000000F /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000F /* Preview Assets.xcassets */; };
-		A10000000000000000000010 /* LibraryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000010 /* LibraryStore.swift */; };
-		A10000000000000000000011 /* FileImportManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000011 /* FileImportManager.swift */; };
-		A10000000000000000000012 /* Tempo.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000012 /* Tempo.swift */; };
-		A10000000000000000000013 /* MIDIManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000013 /* MIDIManager.swift */; };
-		A10000000000000000000014 /* SnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000014 /* SnapshotStore.swift */; };
-		A10000000000000000000015 /* StoreManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000015 /* StoreManager.swift */; };
-		A10000000000000000000016 /* USBMatrixStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000016 /* USBMatrixStore.swift */; };
-		A10000000000000000000017 /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000017 /* PaywallView.swift */; };
-		A10000000000000000000018 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000018 /* OnboardingView.swift */; };
-		A10000000000000000000019 /* DiagnosticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000019 /* DiagnosticsView.swift */; };
-		A1000000000000000000001A /* CrashReporting.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000001A /* CrashReporting.swift */; };
-		A1000000000000000000001B /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000001B /* PrivacyInfo.xcprivacy */; };
+		A10000000000000000000012 /* LibraryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000012 /* LibraryStore.swift */; };
+		A10000000000000000000013 /* FileImportManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000013 /* FileImportManager.swift */; };
+		A10000000000000000000014 /* Tempo.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000014 /* Tempo.swift */; };
+		A10000000000000000000015 /* MIDIManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000015 /* MIDIManager.swift */; };
+		A10000000000000000000016 /* SnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000016 /* SnapshotStore.swift */; };
+		A10000000000000000000017 /* StoreManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000017 /* StoreManager.swift */; };
+		A10000000000000000000018 /* USBMatrixStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000018 /* USBMatrixStore.swift */; };
+		A10000000000000000000019 /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000019 /* PaywallView.swift */; };
+		A1000000000000000000001A /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000001A /* OnboardingView.swift */; };
+		A1000000000000000000001B /* DiagnosticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000001B /* DiagnosticsView.swift */; };
+		A1000000000000000000001C /* CrashReporting.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000001C /* CrashReporting.swift */; };
+		A1000000000000000000001D /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000001D /* PrivacyInfo.xcprivacy */; };
+		A20000000000000000000001 /* Engine.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000001 /* Engine.cpp */; };
+		A20000000000000000000002 /* libSideKitAudio.a in Frameworks */ = {isa = PBXBuildFile; fileRef = C20000000000000000000001 /* libSideKitAudio.a */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		P20000000000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F10000000000000000000000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F20000000000000000000020;
+			remoteInfo = SideKitAudio;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		C10000000000000000000001 /* SideKit.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SideKit.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C20000000000000000000001 /* libSideKitAudio.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libSideKitAudio.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		B10000000000000000000001 /* SideKitApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SideKitApp.swift; sourceTree = "<group>"; };
 		B10000000000000000000002 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		B10000000000000000000003 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
@@ -51,24 +65,39 @@
 		B1000000000000000000000B /* FXView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FXView.swift; sourceTree = "<group>"; };
 		B1000000000000000000000C /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
 		B1000000000000000000000D /* LinkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkView.swift; sourceTree = "<group>"; };
+		B10000000000000000000010 /* SKAudioBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SKAudioBridge.swift; sourceTree = "<group>"; };
+		B10000000000000000000011 /* SideKit-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "SideKit-Bridging-Header.h"; sourceTree = "<group>"; };
 		B1000000000000000000000E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B1000000000000000000000F /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
-		B10000000000000000000010 /* LibraryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryStore.swift; sourceTree = "<group>"; };
-		B10000000000000000000011 /* FileImportManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileImportManager.swift; sourceTree = "<group>"; };
-		B10000000000000000000012 /* Tempo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tempo.swift; sourceTree = "<group>"; };
-		B10000000000000000000013 /* MIDIManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MIDIManager.swift; sourceTree = "<group>"; };
-		B10000000000000000000014 /* SnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotStore.swift; sourceTree = "<group>"; };
-		B10000000000000000000015 /* StoreManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreManager.swift; sourceTree = "<group>"; };
-		B10000000000000000000016 /* USBMatrixStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBMatrixStore.swift; sourceTree = "<group>"; };
-		B10000000000000000000017 /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
-		B10000000000000000000018 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
-		B10000000000000000000019 /* DiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsView.swift; sourceTree = "<group>"; };
-		B1000000000000000000001A /* CrashReporting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrashReporting.swift; sourceTree = "<group>"; };
-		B1000000000000000000001B /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		B10000000000000000000012 /* LibraryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryStore.swift; sourceTree = "<group>"; };
+		B10000000000000000000013 /* FileImportManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileImportManager.swift; sourceTree = "<group>"; };
+		B10000000000000000000014 /* Tempo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tempo.swift; sourceTree = "<group>"; };
+		B10000000000000000000015 /* MIDIManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MIDIManager.swift; sourceTree = "<group>"; };
+		B10000000000000000000016 /* SnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotStore.swift; sourceTree = "<group>"; };
+		B10000000000000000000017 /* StoreManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreManager.swift; sourceTree = "<group>"; };
+		B10000000000000000000018 /* USBMatrixStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBMatrixStore.swift; sourceTree = "<group>"; };
+		B10000000000000000000019 /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
+		B1000000000000000000001A /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		B1000000000000000000001B /* DiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsView.swift; sourceTree = "<group>"; };
+		B1000000000000000000001C /* CrashReporting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrashReporting.swift; sourceTree = "<group>"; };
+		B1000000000000000000001D /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		B20000000000000000000001 /* Engine.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Engine.cpp; sourceTree = "<group>"; };
+		B20000000000000000000002 /* Engine.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Engine.hpp; sourceTree = "<group>"; };
+		B20000000000000000000003 /* RingBuffer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RingBuffer.hpp; sourceTree = "<group>"; };
+		B20000000000000000000004 /* sidekit_audio.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sidekit_audio.h; sourceTree = "<group>"; };
+		B20000000000000000000005 /* hello_render_test.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = hello_render_test.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		D10000000000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A20000000000000000000002 /* libSideKitAudio.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D20000000000000000000001 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -82,6 +111,7 @@
 			isa = PBXGroup;
 			children = (
 				E10000000000000000000002 /* SideKit */,
+				E20000000000000000000001 /* SideKitAudio */,
 				E10000000000000000000003 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -95,6 +125,7 @@
 				B10000000000000000000003 /* Models.swift */,
 				B10000000000000000000004 /* MixerStore.swift */,
 				B10000000000000000000005 /* AudioEngine.swift */,
+				B10000000000000000000010 /* SKAudioBridge.swift */,
 				B10000000000000000000006 /* HardwareMonitor.swift */,
 				B10000000000000000000007 /* Controls.swift */,
 				B10000000000000000000009 /* MixerView.swift */,
@@ -102,18 +133,19 @@
 				B1000000000000000000000B /* FXView.swift */,
 				B1000000000000000000000C /* LibraryView.swift */,
 				B1000000000000000000000D /* LinkView.swift */,
-				B10000000000000000000010 /* LibraryStore.swift */,
-				B10000000000000000000011 /* FileImportManager.swift */,
-				B10000000000000000000012 /* Tempo.swift */,
-				B10000000000000000000013 /* MIDIManager.swift */,
-				B10000000000000000000014 /* SnapshotStore.swift */,
-				B10000000000000000000015 /* StoreManager.swift */,
-				B10000000000000000000016 /* USBMatrixStore.swift */,
-				B10000000000000000000017 /* PaywallView.swift */,
-				B10000000000000000000018 /* OnboardingView.swift */,
-				B10000000000000000000019 /* DiagnosticsView.swift */,
-				B1000000000000000000001A /* CrashReporting.swift */,
-				B1000000000000000000001B /* PrivacyInfo.xcprivacy */,
+				B10000000000000000000012 /* LibraryStore.swift */,
+				B10000000000000000000013 /* FileImportManager.swift */,
+				B10000000000000000000014 /* Tempo.swift */,
+				B10000000000000000000015 /* MIDIManager.swift */,
+				B10000000000000000000016 /* SnapshotStore.swift */,
+				B10000000000000000000017 /* StoreManager.swift */,
+				B10000000000000000000018 /* USBMatrixStore.swift */,
+				B10000000000000000000019 /* PaywallView.swift */,
+				B1000000000000000000001A /* OnboardingView.swift */,
+				B1000000000000000000001B /* DiagnosticsView.swift */,
+				B1000000000000000000001C /* CrashReporting.swift */,
+				B1000000000000000000001D /* PrivacyInfo.xcprivacy */,
+				B10000000000000000000011 /* SideKit-Bridging-Header.h */,
 				B1000000000000000000000E /* Assets.xcassets */,
 				E10000000000000000000004 /* Preview Content */,
 			);
@@ -124,6 +156,7 @@
 			isa = PBXGroup;
 			children = (
 				C10000000000000000000001 /* SideKit.app */,
+				C20000000000000000000001 /* libSideKitAudio.a */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -134,6 +167,42 @@
 				B1000000000000000000000F /* Preview Assets.xcassets */,
 			);
 			path = "Preview Content";
+			sourceTree = "<group>";
+		};
+		E20000000000000000000001 /* SideKitAudio */ = {
+			isa = PBXGroup;
+			children = (
+				E20000000000000000000002 /* include */,
+				E20000000000000000000003 /* src */,
+				E20000000000000000000004 /* tests */,
+			);
+			path = SideKitAudio;
+			sourceTree = "<group>";
+		};
+		E20000000000000000000002 /* include */ = {
+			isa = PBXGroup;
+			children = (
+				B20000000000000000000004 /* sidekit_audio.h */,
+			);
+			path = include;
+			sourceTree = "<group>";
+		};
+		E20000000000000000000003 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				B20000000000000000000001 /* Engine.cpp */,
+				B20000000000000000000002 /* Engine.hpp */,
+				B20000000000000000000003 /* RingBuffer.hpp */,
+			);
+			path = src;
+			sourceTree = "<group>";
+		};
+		E20000000000000000000004 /* tests */ = {
+			isa = PBXGroup;
+			children = (
+				B20000000000000000000005 /* hello_render_test.cpp */,
+			);
+			path = tests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -150,11 +219,28 @@
 			buildRules = (
 			);
 			dependencies = (
+				P20000000000000000000002 /* PBXTargetDependency */,
 			);
 			name = SideKit;
 			productName = SideKit;
 			productReference = C10000000000000000000001 /* SideKit.app */;
 			productType = "com.apple.product-type.application";
+		};
+		F20000000000000000000020 /* SideKitAudio */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F20000000000000000000021 /* Build configuration list for PBXNativeTarget "SideKitAudio" */;
+			buildPhases = (
+				F20000000000000000000022 /* Sources */,
+				D20000000000000000000001 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = SideKitAudio;
+			productName = SideKitAudio;
+			productReference = C20000000000000000000001 /* libSideKitAudio.a */;
+			productType = "com.apple.product-type.library.static";
 		};
 /* End PBXNativeTarget section */
 
@@ -167,6 +253,9 @@
 				LastUpgradeCheck = 1600;
 				TargetAttributes = {
 					F10000000000000000000001 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+					F20000000000000000000020 = {
 						CreatedOnToolsVersion = 16.0;
 					};
 				};
@@ -185,6 +274,7 @@
 			projectRoot = "";
 			targets = (
 				F10000000000000000000001 /* SideKit */,
+				F20000000000000000000020 /* SideKitAudio */,
 			);
 		};
 /* End PBXProject section */
@@ -196,7 +286,7 @@
 			files = (
 				A1000000000000000000000E /* Assets.xcassets in Resources */,
 				A1000000000000000000000F /* Preview Assets.xcassets in Resources */,
-				A1000000000000000000001B /* PrivacyInfo.xcprivacy in Resources */,
+				A1000000000000000000001D /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -212,6 +302,7 @@
 				A10000000000000000000003 /* Models.swift in Sources */,
 				A10000000000000000000004 /* MixerStore.swift in Sources */,
 				A10000000000000000000005 /* AudioEngine.swift in Sources */,
+				A10000000000000000000010 /* SKAudioBridge.swift in Sources */,
 				A10000000000000000000006 /* HardwareMonitor.swift in Sources */,
 				A10000000000000000000007 /* Controls.swift in Sources */,
 				A10000000000000000000008 /* RootView.swift in Sources */,
@@ -220,21 +311,37 @@
 				A1000000000000000000000B /* FXView.swift in Sources */,
 				A1000000000000000000000C /* LibraryView.swift in Sources */,
 				A1000000000000000000000D /* LinkView.swift in Sources */,
-				A10000000000000000000010 /* LibraryStore.swift in Sources */,
-				A10000000000000000000011 /* FileImportManager.swift in Sources */,
-				A10000000000000000000012 /* Tempo.swift in Sources */,
-				A10000000000000000000013 /* MIDIManager.swift in Sources */,
-				A10000000000000000000014 /* SnapshotStore.swift in Sources */,
-				A10000000000000000000015 /* StoreManager.swift in Sources */,
-				A10000000000000000000016 /* USBMatrixStore.swift in Sources */,
-				A10000000000000000000017 /* PaywallView.swift in Sources */,
-				A10000000000000000000018 /* OnboardingView.swift in Sources */,
-				A10000000000000000000019 /* DiagnosticsView.swift in Sources */,
-				A1000000000000000000001A /* CrashReporting.swift in Sources */,
+				A10000000000000000000012 /* LibraryStore.swift in Sources */,
+				A10000000000000000000013 /* FileImportManager.swift in Sources */,
+				A10000000000000000000014 /* Tempo.swift in Sources */,
+				A10000000000000000000015 /* MIDIManager.swift in Sources */,
+				A10000000000000000000016 /* SnapshotStore.swift in Sources */,
+				A10000000000000000000017 /* StoreManager.swift in Sources */,
+				A10000000000000000000018 /* USBMatrixStore.swift in Sources */,
+				A10000000000000000000019 /* PaywallView.swift in Sources */,
+				A1000000000000000000001A /* OnboardingView.swift in Sources */,
+				A1000000000000000000001B /* DiagnosticsView.swift in Sources */,
+				A1000000000000000000001C /* CrashReporting.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F20000000000000000000022 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A20000000000000000000001 /* Engine.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		P20000000000000000000002 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = F20000000000000000000020 /* SideKitAudio */;
+			targetProxy = P20000000000000000000001 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		F20000000000000000000001 /* Debug */ = {
@@ -242,6 +349,7 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
 				COPY_PHASE_STRIP = NO;
@@ -264,6 +372,7 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
 				COPY_PHASE_STRIP = NO;
@@ -283,11 +392,16 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"SideKit/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/SideKitAudio/include",
+				);
 				INFOPLIST_KEY_CFBundleDisplayName = SideKit;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "SideKit can use the iPhone mic as a mixer channel source.";
@@ -301,12 +415,21 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)",
+				);
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lc++",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.johnnyclem.SideKit;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "SideKit/SideKit-Bridging-Header.h";
 				SWIFT_STRICT_CONCURRENCY = targeted;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -318,11 +441,16 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"SideKit/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/SideKitAudio/include",
+				);
 				INFOPLIST_KEY_CFBundleDisplayName = SideKit;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "SideKit can use the iPhone mic as a mixer channel source.";
@@ -336,15 +464,74 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)",
+				);
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lc++",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.johnnyclem.SideKit;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "SideKit/SideKit-Bridging-Header.h";
 				SWIFT_STRICT_CONCURRENCY = targeted;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		F20000000000000000000023 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGNING_ALLOWED = NO;
+				EXECUTABLE_PREFIX = lib;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/SideKitAudio/include",
+					"$(SRCROOT)/SideKitAudio/src",
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				OTHER_CPLUSPLUSFLAGS = (
+					"$(OTHER_CFLAGS)",
+					"-fno-exceptions",
+					"-fno-rtti",
+				);
+				PRODUCT_NAME = SideKitAudio;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		F20000000000000000000024 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGNING_ALLOWED = NO;
+				EXECUTABLE_PREFIX = lib;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/SideKitAudio/include",
+					"$(SRCROOT)/SideKitAudio/src",
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				OTHER_CPLUSPLUSFLAGS = (
+					"$(OTHER_CFLAGS)",
+					"-fno-exceptions",
+					"-fno-rtti",
+				);
+				PRODUCT_NAME = SideKitAudio;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
@@ -365,6 +552,15 @@
 			buildConfigurations = (
 				F20000000000000000000003 /* Debug */,
 				F20000000000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F20000000000000000000021 /* Build configuration list for PBXNativeTarget "SideKitAudio" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F20000000000000000000023 /* Debug */,
+				F20000000000000000000024 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

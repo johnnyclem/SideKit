@@ -10,6 +10,11 @@ import QuartzCore
 ///  - **File** (SK-010/011/012/013/015, user-imported tracks): real `AVAudioFile` playback
 ///    scheduled via `scheduleSegment`, with `AVAudioUnitVarispeed` driving the vinyl-style
 ///    pitch/tempo fader (SK-012) and a 25 ms scheduler tick handling seek-based looping (SK-034).
+///
+/// A third source, the C++ `SideKitAudio` static lib (SK-001), is pulled every render
+/// quantum via an `AVAudioSourceNode` mixed into `dryMixer` alongside the two decks —
+/// today it renders silence (hello callback / warmup only); SK-004 will move real DSP
+/// into it.
 final class AudioEngine {
     static let shared = AudioEngine()
 
@@ -21,6 +26,7 @@ final class AudioEngine {
     /// Fires when an interruption (SK-015, e.g. a phone call) forces a channel to pause
     /// or resume, so the UI transport button can mirror the engine's real state.
     var onForcedPlaybackChange: ((Int, Bool) -> Void)?
+    var cppCoreVersion: String { cppBridge.version }
 
     private let engine = AVAudioEngine()
     private let ch1Player = AVAudioPlayerNode()
@@ -81,6 +87,10 @@ final class AudioEngine {
     private var meterM: Double = 0
 
     private var interruptedChannels: Set<Int> = []
+
+    private let cppBridge = SKAudioBridge.shared
+    private var cppScratch = [Float](repeating: 0, count: 4096)
+    private var cppSource: AVAudioSourceNode?
 
     private init() {
         configureGraph()
@@ -396,6 +406,10 @@ final class AudioEngine {
         [ch1Player, ch2Player, ch1Varispeed, ch2Varispeed, ch1Mixer, ch2Mixer, dryMixer, filter, delay, ch1EQ, ch2EQ]
             .forEach { engine.attach($0) }
 
+        let source = makeCppSource()
+        cppSource = source
+        engine.attach(source)
+
         engine.connect(ch1Player, to: ch1Varispeed, format: format)
         engine.connect(ch1Varispeed, to: ch1EQ, format: format)
         engine.connect(ch1EQ, to: ch1Mixer, format: format)
@@ -404,6 +418,7 @@ final class AudioEngine {
         engine.connect(ch2EQ, to: ch2Mixer, format: format)
         engine.connect(ch1Mixer, to: dryMixer, format: format)
         engine.connect(ch2Mixer, to: dryMixer, format: format)
+        engine.connect(source, to: dryMixer, format: format)
         engine.connect(dryMixer, to: filter, format: format)
         engine.connect(filter, to: delay, format: format)
         engine.connect(delay, to: engine.mainMixerNode, format: format)
@@ -411,6 +426,33 @@ final class AudioEngine {
         installMeter(ch1Mixer, slot: 1)
         installMeter(ch2Mixer, slot: 2)
         installMeter(engine.mainMixerNode, slot: 0)
+    }
+
+    private func makeCppSource() -> AVAudioSourceNode {
+        AVAudioSourceNode(format: format) { [weak self] _, _, frameCount, ablPtr -> OSStatus in
+            guard let self else { return noErr }
+            let frames = Int(frameCount)
+            let needed = frames * 2
+            guard needed <= self.cppScratch.count else { return noErr }
+            self.cppScratch.withUnsafeMutableBufferPointer { buf in
+                guard let base = buf.baseAddress else { return }
+                _ = self.cppBridge.render(into: base, frames: UInt32(frames))
+            }
+            let abl = UnsafeMutableAudioBufferListPointer(ablPtr)
+            if abl.count >= 2,
+               let left = abl[0].mData?.assumingMemoryBound(to: Float.self),
+               let right = abl[1].mData?.assumingMemoryBound(to: Float.self) {
+                for i in 0..<frames {
+                    left[i] = self.cppScratch[i * 2]
+                    right[i] = self.cppScratch[i * 2 + 1]
+                }
+            } else if abl.count == 1, let data = abl[0].mData?.assumingMemoryBound(to: Float.self) {
+                for i in 0..<needed {
+                    data[i] = self.cppScratch[i]
+                }
+            }
+            return noErr
+        }
     }
 
     private func configureEQ(_ eq: AVAudioUnitEQ) {
@@ -452,6 +494,8 @@ final class AudioEngine {
     private func startIfNeeded() {
         guard !started else { return }
         started = true
+        let warm = cppBridge.warmup()
+        print("SideKit C++ \(cppBridge.version) warmup frames=\(warm.frames_rendered) t=\(warm.sample_time)")
         engine.prepare()
         try? engine.start()
         ch1Player.play()
