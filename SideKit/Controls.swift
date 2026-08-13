@@ -80,6 +80,17 @@ struct VerticalFader: View {
             )
         }
         .frame(width: 28, height: height)
+        .accessibilityElement()
+        .accessibilityLabel("Fader")
+        .accessibilityValue("\(Int(value * 100)) percent")
+        .accessibilityAdjustableAction { direction in
+            let step = 0.05
+            switch direction {
+            case .increment: value = min(1, value + step)
+            case .decrement: value = max(0, value - step)
+            @unknown default: break
+            }
+        }
     }
 }
 
@@ -181,6 +192,8 @@ struct ToggleChip: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(label)
+        .accessibilityValue(isOn ? "On" : "Off")
     }
 }
 

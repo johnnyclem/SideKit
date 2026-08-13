@@ -22,6 +22,18 @@
 		A1000000000000000000000D /* LinkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000D /* LinkView.swift */; };
 		A1000000000000000000000E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000E /* Assets.xcassets */; };
 		A1000000000000000000000F /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000F /* Preview Assets.xcassets */; };
+		A10000000000000000000010 /* LibraryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000010 /* LibraryStore.swift */; };
+		A10000000000000000000011 /* FileImportManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000011 /* FileImportManager.swift */; };
+		A10000000000000000000012 /* Tempo.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000012 /* Tempo.swift */; };
+		A10000000000000000000013 /* MIDIManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000013 /* MIDIManager.swift */; };
+		A10000000000000000000014 /* SnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000014 /* SnapshotStore.swift */; };
+		A10000000000000000000015 /* StoreManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000015 /* StoreManager.swift */; };
+		A10000000000000000000016 /* USBMatrixStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000016 /* USBMatrixStore.swift */; };
+		A10000000000000000000017 /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000017 /* PaywallView.swift */; };
+		A10000000000000000000018 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000018 /* OnboardingView.swift */; };
+		A10000000000000000000019 /* DiagnosticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000019 /* DiagnosticsView.swift */; };
+		A1000000000000000000001A /* CrashReporting.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000001A /* CrashReporting.swift */; };
+		A1000000000000000000001B /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000001B /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -41,6 +53,18 @@
 		B1000000000000000000000D /* LinkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkView.swift; sourceTree = "<group>"; };
 		B1000000000000000000000E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B1000000000000000000000F /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		B10000000000000000000010 /* LibraryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryStore.swift; sourceTree = "<group>"; };
+		B10000000000000000000011 /* FileImportManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileImportManager.swift; sourceTree = "<group>"; };
+		B10000000000000000000012 /* Tempo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tempo.swift; sourceTree = "<group>"; };
+		B10000000000000000000013 /* MIDIManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MIDIManager.swift; sourceTree = "<group>"; };
+		B10000000000000000000014 /* SnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotStore.swift; sourceTree = "<group>"; };
+		B10000000000000000000015 /* StoreManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreManager.swift; sourceTree = "<group>"; };
+		B10000000000000000000016 /* USBMatrixStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBMatrixStore.swift; sourceTree = "<group>"; };
+		B10000000000000000000017 /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
+		B10000000000000000000018 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		B10000000000000000000019 /* DiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsView.swift; sourceTree = "<group>"; };
+		B1000000000000000000001A /* CrashReporting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrashReporting.swift; sourceTree = "<group>"; };
+		B1000000000000000000001B /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -78,6 +102,18 @@
 				B1000000000000000000000B /* FXView.swift */,
 				B1000000000000000000000C /* LibraryView.swift */,
 				B1000000000000000000000D /* LinkView.swift */,
+				B10000000000000000000010 /* LibraryStore.swift */,
+				B10000000000000000000011 /* FileImportManager.swift */,
+				B10000000000000000000012 /* Tempo.swift */,
+				B10000000000000000000013 /* MIDIManager.swift */,
+				B10000000000000000000014 /* SnapshotStore.swift */,
+				B10000000000000000000015 /* StoreManager.swift */,
+				B10000000000000000000016 /* USBMatrixStore.swift */,
+				B10000000000000000000017 /* PaywallView.swift */,
+				B10000000000000000000018 /* OnboardingView.swift */,
+				B10000000000000000000019 /* DiagnosticsView.swift */,
+				B1000000000000000000001A /* CrashReporting.swift */,
+				B1000000000000000000001B /* PrivacyInfo.xcprivacy */,
 				B1000000000000000000000E /* Assets.xcassets */,
 				E10000000000000000000004 /* Preview Content */,
 			);
@@ -160,6 +196,7 @@
 			files = (
 				A1000000000000000000000E /* Assets.xcassets in Resources */,
 				A1000000000000000000000F /* Preview Assets.xcassets in Resources */,
+				A1000000000000000000001B /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -183,6 +220,17 @@
 				A1000000000000000000000B /* FXView.swift in Sources */,
 				A1000000000000000000000C /* LibraryView.swift in Sources */,
 				A1000000000000000000000D /* LinkView.swift in Sources */,
+				A10000000000000000000010 /* LibraryStore.swift in Sources */,
+				A10000000000000000000011 /* FileImportManager.swift in Sources */,
+				A10000000000000000000012 /* Tempo.swift in Sources */,
+				A10000000000000000000013 /* MIDIManager.swift in Sources */,
+				A10000000000000000000014 /* SnapshotStore.swift in Sources */,
+				A10000000000000000000015 /* StoreManager.swift in Sources */,
+				A10000000000000000000016 /* USBMatrixStore.swift in Sources */,
+				A10000000000000000000017 /* PaywallView.swift in Sources */,
+				A10000000000000000000018 /* OnboardingView.swift in Sources */,
+				A10000000000000000000019 /* DiagnosticsView.swift in Sources */,
+				A1000000000000000000001A /* CrashReporting.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -248,7 +296,7 @@
 				INFOPLIST_KEY_UIBackgroundModes = audio;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -261,7 +309,7 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_STRICT_CONCURRENCY = targeted;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
@@ -283,7 +331,7 @@
 				INFOPLIST_KEY_UIBackgroundModes = audio;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -296,7 +344,7 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_STRICT_CONCURRENCY = targeted;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};

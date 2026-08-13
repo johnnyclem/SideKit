@@ -118,6 +118,12 @@ struct Track: Identifiable, Equatable {
     let key: String
     let duration: Double
     let pattern: Pattern
+    /// Non-nil for user-imported files (SK-010/SK-035); nil for bundled demo tracks,
+    /// which fall back to the pattern synth voice below.
+    var fileURL: URL? = nil
+    var bpmIsEstimated: Bool = false
+
+    var isImported: Bool { fileURL != nil }
 }
 
 struct ChannelState: Equatable {
@@ -139,6 +145,13 @@ struct ChannelState: Equatable {
     var playing: Bool = false
     var trackId: String? = nil
     var deckPos: Double = 0
+
+    /// Hot cues (SK-034): 4 slots, each an absolute track position in seconds, or nil if unset.
+    var hotCues: [TimeInterval?] = [nil, nil, nil, nil]
+    /// Loop (SK-034): active flag, start position in seconds, length in beats (quantized when BPM known).
+    var loopActive: Bool = false
+    var loopStartSec: TimeInterval = 0
+    var loopLengthBeats: Double = 1
 
     var effectiveBpm: Double { bpm * (1 + pitch / 100) }
 }

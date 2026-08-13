@@ -4,6 +4,10 @@ import SwiftUI
 struct SideKitApp: App {
     @StateObject private var store = MixerStore()
 
+    init() {
+        CrashReporting.shared.recordLaunch()
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView()

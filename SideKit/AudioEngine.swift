@@ -1,16 +1,32 @@
 import AVFoundation
 import Foundation
+import QuartzCore
 
-/// Dual-deck pattern engine + mixer / FX graph (AVAudioEngine).
-/// Demo tones stand in for file decode until SK-010 lands.
+/// Dual-deck engine + mixer / FX graph (AVAudioEngine).
+///
+/// Two playback modes per channel:
+///  - **Pattern** (demo library tracks, no bundled audio assets shipped yet): synthesized
+///    step-sequenced hits, unchanged from the original prototype.
+///  - **File** (SK-010/011/012/013/015, user-imported tracks): real `AVAudioFile` playback
+///    scheduled via `scheduleSegment`, with `AVAudioUnitVarispeed` driving the vinyl-style
+///    pitch/tempo fader (SK-012) and a 25 ms scheduler tick handling seek-based looping (SK-034).
 final class AudioEngine {
     static let shared = AudioEngine()
 
     var onMeters: ((Double, Double, Double) -> Void)?
+    /// Fires ~40 Hz with the real playback position (0...1) for file-backed decks only.
+    var onDeckPosition: ((Int, Double) -> Void)?
+    /// Fires when a loop wraps (SK-034), so the UI can flash the loop indicator.
+    var onLoopWrapped: ((Int) -> Void)?
+    /// Fires when an interruption (SK-015, e.g. a phone call) forces a channel to pause
+    /// or resume, so the UI transport button can mirror the engine's real state.
+    var onForcedPlaybackChange: ((Int, Bool) -> Void)?
 
     private let engine = AVAudioEngine()
     private let ch1Player = AVAudioPlayerNode()
     private let ch2Player = AVAudioPlayerNode()
+    private let ch1Varispeed = AVAudioUnitVarispeed()
+    private let ch2Varispeed = AVAudioUnitVarispeed()
     private let ch1Mixer = AVAudioMixerNode()
     private let ch2Mixer = AVAudioMixerNode()
     private let dryMixer = AVAudioMixerNode()
@@ -23,6 +39,8 @@ final class AudioEngine {
     private var started = false
     private let queue = DispatchQueue(label: "com.sidekit.audio", qos: .userInteractive)
 
+    private enum DeckMode { case pattern, file }
+
     private struct Voice {
         var active = false
         var pattern: Pattern = .kick
@@ -31,15 +49,107 @@ final class AudioEngine {
         var step: Int = 0
     }
 
+    private struct FileDeck {
+        var file: AVAudioFile?
+        var sampleRate: Double = 48_000
+        var totalFrames: AVAudioFramePosition = 0
+        var duration: Double = 0
+        var playing = false
+        var rate: Double = 1
+        var startFrame: AVAudioFramePosition = 0
+        var startHost: CFTimeInterval = 0
+        var loopActive = false
+        var loopStartSec: Double = 0
+        var loopLenSec: Double = 0
+
+        func currentSeconds(now: CFTimeInterval) -> Double {
+            guard duration > 0 else { return 0 }
+            let sec = Double(startFrame) / sampleRate + (playing ? (now - startHost) * rate : 0)
+            return min(duration, max(0, sec))
+        }
+    }
+
+    private var mode1: DeckMode = .pattern
+    private var mode2: DeckMode = .pattern
     private var v1 = Voice()
     private var v2 = Voice()
+    private var d1 = FileDeck()
+    private var d2 = FileDeck()
     private var timer: DispatchSourceTimer?
     private var meter1: Double = 0
     private var meter2: Double = 0
     private var meterM: Double = 0
 
+    private var interruptedChannels: Set<Int> = []
+
     private init() {
         configureGraph()
+        observeInterruptions()
+    }
+
+    /// SK-015: "Interruption (call) pauses and resumes cleanly." Route-change UI updates
+    /// are handled separately by `HardwareMonitor`.
+    private func observeInterruptions() {
+        NotificationCenter.default.addObserver(
+            forName: AVAudioSession.interruptionNotification, object: nil, queue: .main
+        ) { [weak self] note in
+            guard let self,
+                  let info = note.userInfo,
+                  let typeValue = info[AVAudioSessionInterruptionTypeKey] as? UInt,
+                  let type = AVAudioSession.InterruptionType(rawValue: typeValue) else { return }
+            switch type {
+            case .began:
+                self.handleInterruptionBegan()
+            case .ended:
+                let optionsValue = info[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
+                let shouldResume = AVAudioSession.InterruptionOptions(rawValue: optionsValue).contains(.shouldResume)
+                self.handleInterruptionEnded(shouldResume: shouldResume)
+            @unknown default:
+                break
+            }
+        }
+    }
+
+    /// All reads/writes of `mode1/2`, `d1/2`, `v1/2` are confined to `queue` — these two
+    /// handlers hop onto it explicitly since the interruption notification fires on `.main`.
+    private func handleInterruptionBegan() {
+        queue.async { [weak self] in
+            guard let self else { return }
+            for ch in [1, 2] {
+                let mode = ch == 1 ? self.mode1 : self.mode2
+                let playing = mode == .file ? (ch == 1 ? self.d1.playing : self.d2.playing) : (ch == 1 ? self.v1.active : self.v2.active)
+                guard playing else { continue }
+                self.interruptedChannels.insert(ch)
+                if mode == .file {
+                    self.pauseFile(ch)
+                } else {
+                    if ch == 1 { self.v1.active = false } else { self.v2.active = false }
+                }
+                DispatchQueue.main.async { self.onForcedPlaybackChange?(ch, false) }
+            }
+        }
+    }
+
+    private func handleInterruptionEnded(shouldResume: Bool) {
+        try? AVAudioSession.sharedInstance().setActive(true)
+        queue.async { [weak self] in
+            guard let self else { return }
+            guard shouldResume else { self.interruptedChannels.removeAll(); return }
+            for ch in self.interruptedChannels {
+                let mode = ch == 1 ? self.mode1 : self.mode2
+                if mode == .file {
+                    self.playFile(ch)
+                } else {
+                    var voice = ch == 1 ? self.v1 : self.v2
+                    voice.active = true
+                    voice.nextNote = CACurrentMediaTime() + 0.05
+                    if ch == 1 { self.v1 = voice } else { self.v2 = voice }
+                    self.startScheduler()
+                }
+                DispatchQueue.main.async { self.onForcedPlaybackChange?(ch, true) }
+            }
+            self.interruptedChannels.removeAll()
+        }
     }
 
     func unlock() async {
@@ -61,8 +171,43 @@ final class AudioEngine {
         engine.mainMixerNode.outputVolume = Float(max(0, min(1, level * 0.9)))
     }
 
+    // MARK: - Load / mode switch
+
+    /// Called when a track loads into a deck (SK-010/011). Switches the channel between
+    /// pattern and file playback and resets transport state.
+    func loadTrack(_ ch: Int, url: URL?, duration: Double) {
+        queue.async { [weak self] in
+            guard let self else { return }
+            self.stopChannel(ch)
+            if let url, let file = try? AVAudioFile(forReading: url) {
+                var deck = FileDeck()
+                deck.file = file
+                deck.sampleRate = file.processingFormat.sampleRate
+                deck.totalFrames = file.length
+                deck.duration = duration > 0 ? duration : Double(file.length) / deck.sampleRate
+                if ch == 1 { self.d1 = deck; self.mode1 = .file } else { self.d2 = deck; self.mode2 = .file }
+            } else {
+                if ch == 1 { self.mode1 = .pattern } else { self.mode2 = .pattern }
+            }
+        }
+    }
+
+    private func stopChannel(_ ch: Int) {
+        let player = ch == 1 ? ch1Player : ch2Player
+        player.stop()
+        if ch == 1 { d1.playing = false; v1.active = false } else { d2.playing = false; v2.active = false }
+    }
+
+    // MARK: - Transport (pattern + file, unified entry points from MixerStore)
+
     func setChannelPlaying(_ ch: Int, _ playing: Bool, _ track: Track?, bpm: Double) {
-        queue.async {
+        queue.async { [weak self] in
+            guard let self else { return }
+            let isFile = ch == 1 ? self.mode1 == .file : self.mode2 == .file
+            if isFile {
+                if playing { self.playFile(ch) } else { self.pauseFile(ch) }
+                return
+            }
             var voice = ch == 1 ? self.v1 : self.v2
             voice.active = playing && track != nil
             voice.pattern = track?.pattern ?? .kick
@@ -76,9 +221,100 @@ final class AudioEngine {
         }
     }
 
+    /// Seek as a 0...1 fraction of track duration. No-op for pattern decks.
+    func seek(_ ch: Int, toFraction fraction: Double) {
+        queue.async { [weak self] in
+            guard let self else { return }
+            let duration = ch == 1 ? self.d1.duration : self.d2.duration
+            guard duration > 0 else { return }
+            self.seekFileSeconds(ch, min(duration, max(0, fraction * duration)))
+        }
+    }
+
+    func setRate(_ ch: Int, ratePercent pitch: Double) {
+        let rate = 1 + pitch / 100
+        queue.async { [weak self] in
+            guard let self else { return }
+            let isFile = ch == 1 ? self.mode1 == .file : self.mode2 == .file
+            guard isFile else { return }
+            let now = CACurrentMediaTime()
+            if ch == 1 {
+                let sec = self.d1.currentSeconds(now: now)
+                self.d1.startFrame = AVAudioFramePosition(sec * self.d1.sampleRate)
+                self.d1.startHost = now
+                self.d1.rate = rate
+            } else {
+                let sec = self.d2.currentSeconds(now: now)
+                self.d2.startFrame = AVAudioFramePosition(sec * self.d2.sampleRate)
+                self.d2.startHost = now
+                self.d2.rate = rate
+            }
+            DispatchQueue.main.async {
+                (ch == 1 ? self.ch1Varispeed : self.ch2Varispeed).rate = Float(max(0.25, min(4, rate)))
+            }
+        }
+    }
+
+    func setLoop(_ ch: Int, active: Bool, startSec: Double, lengthSec: Double) {
+        queue.async { [weak self] in
+            guard let self else { return }
+            if ch == 1 {
+                self.d1.loopActive = active; self.d1.loopStartSec = startSec; self.d1.loopLenSec = lengthSec
+            } else {
+                self.d2.loopActive = active; self.d2.loopStartSec = startSec; self.d2.loopLenSec = lengthSec
+            }
+        }
+    }
+
+    private func playFile(_ ch: Int) {
+        var deck = ch == 1 ? d1 : d2
+        guard let file = deck.file, deck.totalFrames > 0 else { return }
+        let player = ch == 1 ? ch1Player : ch2Player
+        let startFrame = min(deck.startFrame, deck.totalFrames - 1)
+        let remaining = AVAudioFrameCount(max(0, deck.totalFrames - startFrame))
+        guard remaining > 0 else { return }
+        player.stop()
+        player.scheduleSegment(file, startingFrame: startFrame, frameCount: remaining, at: nil, completionCallbackType: .dataPlayedBack) { [weak self] _ in
+            self?.queue.async {
+                guard let self else { return }
+                let stillPlaying = ch == 1 ? self.d1.playing : self.d2.playing
+                let loop = ch == 1 ? self.d1.loopActive : self.d2.loopActive
+                if stillPlaying && !loop {
+                    if ch == 1 { self.d1.playing = false } else { self.d2.playing = false }
+                }
+            }
+        }
+        startIfNeeded()
+        player.play()
+        deck.playing = true
+        deck.startHost = CACurrentMediaTime()
+        if ch == 1 { d1 = deck } else { d2 = deck }
+        startScheduler()
+    }
+
+    private func pauseFile(_ ch: Int) {
+        let now = CACurrentMediaTime()
+        let player = ch == 1 ? ch1Player : ch2Player
+        var deck = ch == 1 ? d1 : d2
+        let sec = deck.currentSeconds(now: now)
+        player.stop()
+        deck.startFrame = AVAudioFramePosition(sec * deck.sampleRate)
+        deck.playing = false
+        if ch == 1 { d1 = deck } else { d2 = deck }
+    }
+
+    private func seekFileSeconds(_ ch: Int, _ seconds: Double) {
+        var deck = ch == 1 ? d1 : d2
+        deck.startFrame = AVAudioFramePosition(seconds * deck.sampleRate)
+        deck.startHost = CACurrentMediaTime()
+        let wasPlaying = deck.playing
+        if ch == 1 { d1 = deck } else { d2 = deck }
+        if wasPlaying { playFile(ch) }
+    }
+
     func applyChannel(_ ch: Int, _ state: ChannelState, xf: Double, master: Double) {
         let x = ch == 1 ? (1 - xf) : xf
-        let xfGain = cos((1 - x) * 0.5 * .pi)
+        let (xfGain, _) = Tempo.equalPowerCrossfade(1 - x)
         let mute = state.mute ? 0.0 : 1.0
         let lin = pow(10.0, state.gain / 20.0)
         let level = state.fader * lin * xfGain * mute * 0.55
@@ -95,6 +331,8 @@ final class AudioEngine {
         queue.async {
             if ch == 1 { self.v1.bpm = state.effectiveBpm } else { self.v2.bpm = state.effectiveBpm }
         }
+        setRate(ch, ratePercent: state.pitch)
+        setLoop(ch, active: state.loopActive, startSec: state.loopStartSec, lengthSec: Tempo.beatsToSeconds(state.loopLengthBeats, bpm: state.effectiveBpm))
     }
 
     func applyFx(_ fx: FxId, active: Bool, x: Double, y: Double, depth: Double) {
@@ -152,13 +390,17 @@ final class AudioEngine {
         delay.delayTime = 0.25
         delay.feedback = 25
         dryMixer.outputVolume = 1
+        ch1Varispeed.rate = 1
+        ch2Varispeed.rate = 1
 
-        [ch1Player, ch2Player, ch1Mixer, ch2Mixer, dryMixer, filter, delay, ch1EQ, ch2EQ]
+        [ch1Player, ch2Player, ch1Varispeed, ch2Varispeed, ch1Mixer, ch2Mixer, dryMixer, filter, delay, ch1EQ, ch2EQ]
             .forEach { engine.attach($0) }
 
-        engine.connect(ch1Player, to: ch1EQ, format: format)
+        engine.connect(ch1Player, to: ch1Varispeed, format: format)
+        engine.connect(ch1Varispeed, to: ch1EQ, format: format)
         engine.connect(ch1EQ, to: ch1Mixer, format: format)
-        engine.connect(ch2Player, to: ch2EQ, format: format)
+        engine.connect(ch2Player, to: ch2Varispeed, format: format)
+        engine.connect(ch2Varispeed, to: ch2EQ, format: format)
         engine.connect(ch2EQ, to: ch2Mixer, format: format)
         engine.connect(ch1Mixer, to: dryMixer, format: format)
         engine.connect(ch2Mixer, to: dryMixer, format: format)
@@ -221,16 +463,40 @@ final class AudioEngine {
         let t = DispatchSource.makeTimerSource(queue: queue)
         t.schedule(deadline: .now(), repeating: .milliseconds(25))
         t.setEventHandler { [weak self] in
-            self?.schedule()
+            self?.tick()
         }
         t.resume()
         timer = t
     }
 
-    private func schedule() {
+    private func tick() {
         let now = CACurrentMediaTime()
         scheduleVoice(&v1, player: ch1Player, now: now)
         scheduleVoice(&v2, player: ch2Player, now: now)
+        tickFileDeck(1, now: now)
+        tickFileDeck(2, now: now)
+    }
+
+    private func tickFileDeck(_ ch: Int, now: CFTimeInterval) {
+        var deck = ch == 1 ? d1 : d2
+        guard deck.playing, deck.duration > 0 else { return }
+        let sec = deck.currentSeconds(now: now)
+
+        if deck.loopActive, deck.loopLenSec > 0 {
+            let loopEnd = deck.loopStartSec + deck.loopLenSec
+            if sec >= loopEnd {
+                seekFileSeconds(ch, deck.loopStartSec)
+                DispatchQueue.main.async { [weak self] in self?.onLoopWrapped?(ch) }
+                return
+            }
+        }
+        if sec >= deck.duration - 0.02 {
+            deck.playing = false
+            if ch == 1 { d1 = deck } else { d2 = deck }
+        }
+
+        let fraction = deck.duration > 0 ? sec / deck.duration : 0
+        DispatchQueue.main.async { [weak self] in self?.onDeckPosition?(ch, fraction) }
     }
 
     private func scheduleVoice(_ voice: inout Voice, player: AVAudioPlayerNode, now: Double) {

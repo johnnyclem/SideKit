@@ -2,40 +2,85 @@ import SwiftUI
 
 struct RootView: View {
     @EnvironmentObject private var store: MixerStore
+    @Environment(\.horizontalSizeClass) private var hSizeClass
+    @State private var showDiagnostics = false
+
+    private var isRegularWidth: Bool { hSizeClass == .regular }
 
     var body: some View {
         ZStack {
             SKTheme.bg.ignoresSafeArea()
-            VStack(spacing: 0) {
-                StatusHeader()
-                    .padding(.horizontal, 16)
-                    .padding(.top, 4)
-                    .padding(.bottom, 8)
-
-                ScrollView(.vertical, showsIndicators: false) {
-                    Group {
-                        switch store.tab {
-                        case .mixer: MixerView()
-                        case .decks: DecksView()
-                        case .fx: FXView()
-                        case .library: LibraryView()
-                        case .link: LinkView()
+            if isRegularWidth {
+                // SK-047: iPad landscape — two-column mixer+decks, no horizontal overflow.
+                HStack(spacing: 0) {
+                    VStack(spacing: 0) {
+                        StatusHeader(showDiagnostics: $showDiagnostics)
+                            .padding([.horizontal, .top], 16)
+                            .padding(.bottom, 8)
+                        ScrollView(.vertical, showsIndicators: false) {
+                            MixerView().padding(16)
                         }
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 96)
+                    .frame(maxWidth: .infinity)
+                    Divider().overlay(SKTheme.border)
+                    ScrollView(.vertical, showsIndicators: false) {
+                        Group {
+                            switch store.tab {
+                            case .mixer, .decks: DecksView()
+                            case .fx: FXView()
+                            case .library: LibraryView()
+                            case .link: LinkView()
+                            }
+                        }
+                        .padding(16)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    TabBar(tab: $store.tab)
+                }
+            } else {
+                VStack(spacing: 0) {
+                    StatusHeader(showDiagnostics: $showDiagnostics)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 4)
+                        .padding(.bottom, 8)
+
+                    ScrollView(.vertical, showsIndicators: false) {
+                        Group {
+                            switch store.tab {
+                            case .mixer: MixerView()
+                            case .decks: DecksView()
+                            case .fx: FXView()
+                            case .library: LibraryView()
+                            case .link: LinkView()
+                            }
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 96)
+                    }
+                }
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    TabBar(tab: $store.tab)
                 }
             }
         }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            TabBar(tab: $store.tab)
-        }
         .persistentSystemOverlays(.visible)
+        .fullScreenCover(isPresented: $store.showOnboarding) {
+            OnboardingView()
+        }
+        .sheet(isPresented: $store.showPaywall) {
+            PaywallView()
+        }
+        .sheet(isPresented: $showDiagnostics) {
+            DiagnosticsView()
+        }
     }
 }
 
 struct StatusHeader: View {
     @EnvironmentObject private var store: MixerStore
+    @Binding var showDiagnostics: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -59,6 +104,16 @@ struct StatusHeader: View {
                         .foregroundStyle(SKTheme.muted)
                         .padding(.leading, 8)
                 }
+                Button {
+                    showDiagnostics = true
+                } label: {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 12))
+                        .foregroundStyle(SKTheme.subtle)
+                        .padding(.leading, 10)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Diagnostics and settings")
             }
 
             HStack(alignment: .bottom) {
@@ -72,10 +127,25 @@ struct StatusHeader: View {
                         .foregroundStyle(SKTheme.fg)
                 }
                 Spacer()
-                Text("Brain for\nK.O. Sidekick")
-                    .font(.system(size: 10))
-                    .foregroundStyle(SKTheme.muted)
-                    .multilineTextAlignment(.trailing)
+                if !store.iap.isPro {
+                    Button { store.showPaywall = true } label: {
+                        Text("GO PRO")
+                            .font(.system(size: 10, weight: .bold))
+                            .tracking(0.6)
+                            .foregroundStyle(SKTheme.accentFg)
+                            .padding(.horizontal, 10)
+                            .frame(height: 26)
+                            .background(SKTheme.accent)
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Upgrade to SideKit Pro")
+                } else {
+                    Text("Brain for\nK.O. Sidekick")
+                        .font(.system(size: 10))
+                        .foregroundStyle(SKTheme.muted)
+                        .multilineTextAlignment(.trailing)
+                }
             }
         }
     }
@@ -104,6 +174,8 @@ struct TabBar: View {
                     .frame(minHeight: 48)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(item.title)
+                .accessibilityAddTraits(tab == item ? .isSelected : [])
             }
         }
         .padding(.top, 6)
