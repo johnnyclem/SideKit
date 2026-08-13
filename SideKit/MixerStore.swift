@@ -141,11 +141,6 @@ final class MixerStore: ObservableObject {
     }
 
     private func bindAudio() {
-        audio.onMeters = { [weak self] ch1m, ch2m, master in
-            Task { @MainActor in
-                self?.meters = (ch1m, ch2m, master)
-            }
-        }
         pushAudio()
         pushFx()
     }
@@ -172,6 +167,7 @@ final class MixerStore: ObservableObject {
         }
         step(&ch1)
         step(&ch2)
+        meters = audio.readMeters()
     }
 }
 

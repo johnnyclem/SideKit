@@ -29,19 +29,19 @@ Audio is **AVAudioEngine** (48 kHz) with a step sequencer that mirrors the web p
 
 Hardware detection uses `AVAudioSession` route changes. Plug in a Sidekick over USB-C and Link should flip to connected when the port name matches.
 
-## C++ audio core (SK-001)
+## C++ audio core (SK-001 / SK-004)
 
 `SideKitAudio` is a static library linked into the app.
 
 - C ABI in `SideKitAudio/include/sidekit_audio.h`
 - Lock-free SPSC command queue (`RingBuffer.hpp`) so the UI thread never touches the render callback
-- Hello render callback fills interleaved float32; silence by default
-- Swift `SKAudioBridge` + `AVAudioSourceNode` pull the callback every quantum
-- Host check (Linux/macOS, no Xcode): `make -C SideKitAudio test`
+- Dual-voice pattern sequencer + 3-band EQ + XF/master in `Engine::render`
+- Swift posts transport/mix/EQ over the SPSC queue only
+- Host check: `make -C SideKitAudio test` (silence, kick energy, mute, no-alloc)
 
 On first Play, the console should print:
 
-`SideKit C++ 0.1.0-sk001 warmup frames=64 t=64`
+`SideKit C++ 0.2.0-sk004 warmup frames=64 t=64 silent=true`
 
 Signing: **Automatic** / Apple Development. Select your Team in Xcode (Signing & Capabilities). `DEVELOPMENT_TEAM` is left blank on purpose.
 
@@ -71,9 +71,8 @@ SideKitAudio/
 
 ## Roadmap
 
-Sprint tickets: `docs/SPRINTS.md`. **SK-001 is done.** Next:
+Sprint tickets: `docs/SPRINTS.md`. **SK-001 and SK-004 are done.** Next:
 
-- SK-004 lock-free 48 kHz engine (ring buffer is in; swap demo voices into C++)
 - SK-010 file decode (AAC/MP3/ALAC/WAV)
 - SK-025/026 real USB 8×4 mix modes
 - SK-040 Core MIDI maps

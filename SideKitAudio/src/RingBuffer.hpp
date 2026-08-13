@@ -17,7 +17,7 @@ public:
         const auto h = head_.load(std::memory_order_relaxed);
         const auto n = (h + 1) & mask_;
         if (n == tail_.load(std::memory_order_acquire)) {
-            return false; // full
+            return false;
         }
         buf_[h] = item;
         head_.store(n, std::memory_order_release);
@@ -27,18 +27,11 @@ public:
     bool pop(T &out) {
         const auto t = tail_.load(std::memory_order_relaxed);
         if (t == head_.load(std::memory_order_acquire)) {
-            return false; // empty
+            return false;
         }
         out = buf_[t];
         tail_.store((t + 1) & mask_, std::memory_order_release);
         return true;
-    }
-
-    void drain(void (*fn)(const T &, void *), void *ctx) {
-        T item{};
-        while (pop(item)) {
-            fn(item, ctx);
-        }
     }
 
 private:
@@ -49,14 +42,23 @@ private:
 };
 
 enum class ParamId : uint8_t {
-    TestToneEnable = 1,
-    TestToneHz = 2,
-    OutputGain = 3,
+    Master = 1,
+    Crossfader = 2,
+    ChannelMix = 3,
+    ChannelEQ = 4,
+    Transport = 5,
+    TestToneEnable = 6,
+    TestToneHz = 7,
+    OutputGain = 8,
 };
 
 struct ParamCmd {
     ParamId id;
-    float value;
+    uint8_t ch; // 1 or 2 for channel cmds; 0 = global
+    float a;
+    float b;
+    float c;
+    float d;
 };
 
 } // namespace sidekit

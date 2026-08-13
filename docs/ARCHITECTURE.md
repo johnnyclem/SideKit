@@ -5,20 +5,20 @@ SwiftUI (portrait)
   RootView → Mixer / Decks / FX / Library / Link
        │
        ▼
- MixerStore (@MainActor, ObservableObject)
+ MixerStore (@MainActor)
+       │  posts via SPSC (never touches the audio thread)
+       ▼
+ SKAudioBridge ──► SideKitAudio (static lib, 48 kHz)
+                     consumeCommands()
+                     ChannelVoice × 2  (pattern sequencer, 6 partials)
+                     3-band EQ + equal-power XF + master
+                     sk_engine_render()  ← no allocations
        │
-       ├── AudioEngine (AVAudioEngine, 48 kHz)
-       │     demo players → 3-band EQ → channel mixers ─┐
-       │     AVAudioSourceNode → sk_engine_render() ────┴→ filter → delay → main
-       └── HardwareMonitor (AVAudioSession route changes)
-
-SideKitAudio (static lib, C++)
-  SpscRing<ParamCmd, 128>   UI → audio
-  Engine::render()          no alloc, interleaved float32
-  C ABI                     sidekit_audio.h
+       ▼
+ AVAudioEngine
+   AVAudioSourceNode → filter → delay → output
+   (FX only; mixer/voices are C++)
 ```
 
-Portrait lock is `UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait`.
-Device family is iPhone only (`TARGETED_DEVICE_FAMILY = 1`).
-
-SK-001 delivered the static lib + hello callback. SK-004 moves the demo voices into `Engine::render`.
+SK-001: static lib + hello callback.
+SK-004: lock-free params, dual-voice 48 kHz render, silence start/stop, no-alloc render.
