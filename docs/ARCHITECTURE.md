@@ -8,12 +8,17 @@ SwiftUI (portrait)
  MixerStore (@MainActor, ObservableObject)
        │
        ├── AudioEngine (AVAudioEngine, 48 kHz)
-       │     players → 3-band EQ → channel mixers → filter → delay → main
-       │     16th-note pattern scheduler (demo voices)
+       │     demo players → 3-band EQ → channel mixers ─┐
+       │     AVAudioSourceNode → sk_engine_render() ────┴→ filter → delay → main
        └── HardwareMonitor (AVAudioSession route changes)
+
+SideKitAudio (static lib, C++)
+  SpscRing<ParamCmd, 128>   UI → audio
+  Engine::render()          no alloc, interleaved float32
+  C ABI                     sidekit_audio.h
 ```
 
 Portrait lock is `UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait`.
 Device family is iPhone only (`TARGETED_DEVICE_FAMILY = 1`).
 
-C++ DSP (PRD-01) is not in this first commit. `AudioEngine.swift` is the Swift stand-in; swap the render path when SK-004 lands.
+SK-001 delivered the static lib + hello callback. SK-004 moves the demo voices into `Engine::render`.

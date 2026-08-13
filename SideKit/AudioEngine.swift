@@ -3,10 +3,12 @@ import Foundation
 
 /// Dual-deck pattern engine + mixer / FX graph (AVAudioEngine).
 /// Demo tones stand in for file decode until SK-010 lands.
+/// C++ `SideKitAudio` is pulled every render quantum via AVAudioSourceNode.
 final class AudioEngine {
     static let shared = AudioEngine()
 
     var onMeters: ((Double, Double, Double) -> Void)?
+    var cppCoreVersion: String { cppBridge.version }
 
     private let engine = AVAudioEngine()
     private let ch1Player = AVAudioPlayerNode()
@@ -37,6 +39,10 @@ final class AudioEngine {
     private var meter1: Double = 0
     private var meter2: Double = 0
     private var meterM: Double = 0
+
+    private let cppBridge = SKAudioBridge.shared
+    private var cppScratch = [Float](repeating: 0, count: 4096)
+    private var cppSource: AVAudioSourceNode?
 
     private init() {
         configureGraph()
@@ -156,12 +162,17 @@ final class AudioEngine {
         [ch1Player, ch2Player, ch1Mixer, ch2Mixer, dryMixer, filter, delay, ch1EQ, ch2EQ]
             .forEach { engine.attach($0) }
 
+        let source = makeCppSource()
+        cppSource = source
+        engine.attach(source)
+
         engine.connect(ch1Player, to: ch1EQ, format: format)
         engine.connect(ch1EQ, to: ch1Mixer, format: format)
         engine.connect(ch2Player, to: ch2EQ, format: format)
         engine.connect(ch2EQ, to: ch2Mixer, format: format)
         engine.connect(ch1Mixer, to: dryMixer, format: format)
         engine.connect(ch2Mixer, to: dryMixer, format: format)
+        engine.connect(source, to: dryMixer, format: format)
         engine.connect(dryMixer, to: filter, format: format)
         engine.connect(filter, to: delay, format: format)
         engine.connect(delay, to: engine.mainMixerNode, format: format)
@@ -169,6 +180,33 @@ final class AudioEngine {
         installMeter(ch1Mixer, slot: 1)
         installMeter(ch2Mixer, slot: 2)
         installMeter(engine.mainMixerNode, slot: 0)
+    }
+
+    private func makeCppSource() -> AVAudioSourceNode {
+        AVAudioSourceNode(format: format) { [weak self] _, _, frameCount, ablPtr -> OSStatus in
+            guard let self else { return noErr }
+            let frames = Int(frameCount)
+            let needed = frames * 2
+            guard needed <= self.cppScratch.count else { return noErr }
+            self.cppScratch.withUnsafeMutableBufferPointer { buf in
+                guard let base = buf.baseAddress else { return }
+                _ = self.cppBridge.render(into: base, frames: UInt32(frames))
+            }
+            let abl = UnsafeMutableAudioBufferListPointer(ablPtr)
+            if abl.count >= 2,
+               let left = abl[0].mData?.assumingMemoryBound(to: Float.self),
+               let right = abl[1].mData?.assumingMemoryBound(to: Float.self) {
+                for i in 0..<frames {
+                    left[i] = self.cppScratch[i * 2]
+                    right[i] = self.cppScratch[i * 2 + 1]
+                }
+            } else if abl.count == 1, let data = abl[0].mData?.assumingMemoryBound(to: Float.self) {
+                for i in 0..<needed {
+                    data[i] = self.cppScratch[i]
+                }
+            }
+            return noErr
+        }
     }
 
     private func configureEQ(_ eq: AVAudioUnitEQ) {
@@ -210,6 +248,8 @@ final class AudioEngine {
     private func startIfNeeded() {
         guard !started else { return }
         started = true
+        let warm = cppBridge.warmup()
+        print("SideKit C++ \(cppBridge.version) warmup frames=\(warm.frames_rendered) t=\(warm.sample_time)")
         engine.prepare()
         try? engine.start()
         ch1Player.play()

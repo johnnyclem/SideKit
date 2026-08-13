@@ -29,23 +29,38 @@ Audio is **AVAudioEngine** (48 kHz) with a step sequencer that mirrors the web p
 
 Hardware detection uses `AVAudioSession` route changes. Plug in a Sidekick over USB-C and Link should flip to connected when the port name matches.
 
+## C++ audio core (SK-001)
+
+`SideKitAudio` is a static library linked into the app.
+
+- C ABI in `SideKitAudio/include/sidekit_audio.h`
+- Lock-free SPSC command queue (`RingBuffer.hpp`) so the UI thread never touches the render callback
+- Hello render callback fills interleaved float32; silence by default
+- Swift `SKAudioBridge` + `AVAudioSourceNode` pull the callback every quantum
+- Host check (Linux/macOS, no Xcode): `make -C SideKitAudio test`
+
+On first Play, the console should print:
+
+`SideKit C++ 0.1.0-sk001 warmup frames=64 t=64`
+
+Signing: **Automatic** / Apple Development. Select your Team in Xcode (Signing & Capabilities). `DEVELOPMENT_TEAM` is left blank on purpose.
+
+Shared scheme: `SideKit.xcodeproj/xcshareddata/xcschemes/SideKit.xcscheme` (Debug run, Release profile/archive). Builds `libSideKitAudio.a` first.
+
 ## Project layout
 
 ```
 SideKit.xcodeproj
 SideKit/
-  SideKitApp.swift        App entry
-  RootView.swift          Portrait chrome + tab bar
-  MixerStore.swift        Observable session state
-  AudioEngine.swift       AVAudioEngine + pattern voices
-  HardwareMonitor.swift   USB / Sidekick route watch
-  MixerView.swift         Channel strips
-  DecksView.swift         Dual decks
-  FXView.swift            Force pad
-  LibraryView.swift       Demo library
-  LinkView.swift          Device + matrix
-  Controls.swift          Knobs, faders, meters
-  Theme.swift             Hardware-adjacent tokens
+  SideKitApp.swift
+  SKAudioBridge.swift      C++ bridge
+  AudioEngine.swift        AVAudioEngine + C++ source node
+  ...
+SideKitAudio/
+  include/sidekit_audio.h  C ABI
+  src/Engine.cpp           render callback
+  src/RingBuffer.hpp       SPSC param queue
+  tests/hello_render_test.cpp
 ```
 
 ## Requirements
@@ -56,8 +71,9 @@ SideKit/
 
 ## Roadmap
 
-Sprint tickets from the App Store PRD (SK-001 … SK-066) live in the conversation / product docs. Next native slices:
+Sprint tickets: `docs/SPRINTS.md`. **SK-001 is done.** Next:
 
+- SK-004 lock-free 48 kHz engine (ring buffer is in; swap demo voices into C++)
 - SK-010 file decode (AAC/MP3/ALAC/WAV)
 - SK-025/026 real USB 8×4 mix modes
 - SK-040 Core MIDI maps
