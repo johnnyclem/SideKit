@@ -2,16 +2,13 @@ import SwiftUI
 
 struct LinkView: View {
     @EnvironmentObject private var store: MixerStore
+    @ObservedObject private var usbMatrix = USBMatrixStore.shared
+    @ObservedObject private var midi = MIDIManager.shared
 
-    private let matrix: [(SourceId, String)] = [
-        (.usb1, "Deck A L/R out"),
-        (.usb2, "Deck B L/R out"),
-        (.usb3, "Sidekick return"),
-        (.usb4, "Cue / preview"),
-        (.usb5, "FX send"),
-        (.usb6, "FX return"),
-        (.usb7, "Aux record"),
-        (.usb8, "Master record"),
+    private let midiTargets: [(String, String)] = [
+        ("ch1.gain", "CH1 Gain"), ("ch1.fader", "CH1 Fader"),
+        ("ch2.gain", "CH2 Gain"), ("ch2.fader", "CH2 Fader"),
+        ("xf", "Crossfader"), ("fx.depth", "FX Depth"), ("fx.engage", "FX Engage"),
     ]
 
     var body: some View {
@@ -58,6 +55,7 @@ struct LinkView: View {
                             .overlay(Capsule().stroke(store.linked ? SKTheme.border : Color.clear, lineWidth: 1))
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(store.linked ? "Disconnect Sidekick" : "Connect Sidekick")
                 }
 
                 if store.linked {
@@ -89,25 +87,44 @@ struct LinkView: View {
             .skPanel()
 
             VStack(alignment: .leading, spacing: 6) {
-                Text("USB AUDIO MATRIX").skLabel().padding(.bottom, 4)
-                ForEach(matrix, id: \.0) { row in
-                    HStack {
-                        Text(row.0.label)
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(SKTheme.fg)
-                        Spacer()
-                        Text(row.1)
-                            .font(.system(size: 10))
-                            .foregroundStyle(SKTheme.muted)
+                HStack {
+                    Text("USB AUDIO MATRIX — \(store.mixMode.rawValue.uppercased())").skLabel()
+                    Spacer()
+                    Text("tap to reassign").font(.system(size: 9)).foregroundStyle(SKTheme.subtle)
+                }
+                .padding(.bottom, 4)
+                ForEach(Array(USBMatrixStore.usbSlots.enumerated()), id: \.offset) { idx, slot in
+                    Menu {
+                        ForEach(USBMatrixStore.roleOptions, id: \.self) { role in
+                            Button(role) {
+                                usbMatrix.setRole(role, slotIndex: idx, mode: store.mixMode.rawValue)
+                            }
+                        }
+                    } label: {
+                        HStack {
+                            Text(SourceId(rawValue: slot)?.label ?? slot)
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(SKTheme.fg)
+                            Spacer()
+                            Text(usbMatrix.roles(for: store.mixMode.rawValue)[idx])
+                                .font(.system(size: 10))
+                                .foregroundStyle(SKTheme.muted)
+                            Image(systemName: "chevron.up.chevron.down")
+                                .font(.system(size: 8))
+                                .foregroundStyle(SKTheme.subtle)
+                        }
+                        .padding(.horizontal, 10)
+                        .frame(height: 34)
+                        .background(SKTheme.inset)
+                        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                     }
-                    .padding(.horizontal, 10)
-                    .frame(height: 34)
-                    .background(SKTheme.inset)
-                    .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                    .accessibilityLabel("\(SourceId(rawValue: slot)?.label ?? slot), routed to \(usbMatrix.roles(for: store.mixMode.rawValue)[idx])")
                 }
             }
             .padding(12)
             .skPanel()
+
+            midiSection
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("ONBOARD INPUTS").skLabel()
@@ -118,6 +135,79 @@ struct LinkView: View {
             .padding(12)
             .skPanel()
         }
+    }
+
+    private var midiSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("MIDI CONTROL").skLabel()
+                Spacer()
+                Circle().fill(midi.sidekickConnected ? SKTheme.ok : SKTheme.subtle).frame(width: 6, height: 6)
+                Text(midi.sidekickConnected ? "Sidekick detected" : (midi.sourceNames.isEmpty ? "No MIDI sources" : "\(midi.sourceNames.count) source(s)"))
+                    .font(.system(size: 9))
+                    .foregroundStyle(SKTheme.subtle)
+            }
+
+            if midi.sidekickConnected {
+                Text("Factory map active — knobs, faders, crossfader, and FX pad respond automatically. No purchase required.")
+                    .font(.system(size: 10))
+                    .foregroundStyle(SKTheme.muted)
+            }
+
+            VStack(spacing: 4) {
+                ForEach(midiTargets, id: \.0) { target, label in
+                    let binding = midi.bindings.first { $0.targetId == target }
+                    HStack {
+                        Text(label).font(.system(size: 11)).foregroundStyle(SKTheme.fg)
+                        Spacer()
+                        if let binding {
+                            Text(binding.kind == .noteOn ? "Note \(binding.number)" : "CC \(binding.number)")
+                                .font(.system(size: 10, design: .monospaced))
+                                .foregroundStyle(SKTheme.muted)
+                        }
+                        Button {
+                            midi.learningTarget == target ? midi.cancelLearn() : midi.learn(target: target)
+                        } label: {
+                            Text(midi.learningTarget == target ? "LISTENING…" : "LEARN")
+                                .font(.system(size: 9, weight: .semibold))
+                                .foregroundStyle(midi.learningTarget == target ? SKTheme.accentFg : SKTheme.muted)
+                                .padding(.horizontal, 8)
+                                .frame(height: 24)
+                                .background(midi.learningTarget == target ? SKTheme.accent : SKTheme.inset)
+                                .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Learn MIDI for \(label)")
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+
+            HStack(spacing: 8) {
+                Button { midi.resetToFactoryMap() } label: {
+                    Text("Reset to factory map")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(SKTheme.muted)
+                        .padding(.horizontal, 10)
+                        .frame(height: 30)
+                        .background(SKTheme.inset)
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                Button(role: .destructive) { midi.clearBindings() } label: {
+                    Text("Clear all")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(SKTheme.danger)
+                        .padding(.horizontal, 10)
+                        .frame(height: 30)
+                        .background(SKTheme.inset)
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(12)
+        .skPanel()
     }
 
     private func stat(_ icon: String, _ value: String, _ label: String) -> some View {

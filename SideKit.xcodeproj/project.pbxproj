@@ -23,6 +23,18 @@
 		A10000000000000000000010 /* SKAudioBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000010 /* SKAudioBridge.swift */; };
 		A1000000000000000000000E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000E /* Assets.xcassets */; };
 		A1000000000000000000000F /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000F /* Preview Assets.xcassets */; };
+		A10000000000000000000012 /* LibraryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000012 /* LibraryStore.swift */; };
+		A10000000000000000000013 /* FileImportManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000013 /* FileImportManager.swift */; };
+		A10000000000000000000014 /* Tempo.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000014 /* Tempo.swift */; };
+		A10000000000000000000015 /* MIDIManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000015 /* MIDIManager.swift */; };
+		A10000000000000000000016 /* SnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000016 /* SnapshotStore.swift */; };
+		A10000000000000000000017 /* StoreManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000017 /* StoreManager.swift */; };
+		A10000000000000000000018 /* USBMatrixStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000018 /* USBMatrixStore.swift */; };
+		A10000000000000000000019 /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000019 /* PaywallView.swift */; };
+		A1000000000000000000001A /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000001A /* OnboardingView.swift */; };
+		A1000000000000000000001B /* DiagnosticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000001B /* DiagnosticsView.swift */; };
+		A1000000000000000000001C /* CrashReporting.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000001C /* CrashReporting.swift */; };
+		A1000000000000000000001D /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000001D /* PrivacyInfo.xcprivacy */; };
 		A20000000000000000000001 /* Engine.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000001 /* Engine.cpp */; };
 		A20000000000000000000002 /* libSideKitAudio.a in Frameworks */ = {isa = PBXBuildFile; fileRef = C20000000000000000000001 /* libSideKitAudio.a */; };
 /* End PBXBuildFile section */
@@ -57,6 +69,18 @@
 		B10000000000000000000011 /* SideKit-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "SideKit-Bridging-Header.h"; sourceTree = "<group>"; };
 		B1000000000000000000000E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B1000000000000000000000F /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		B10000000000000000000012 /* LibraryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryStore.swift; sourceTree = "<group>"; };
+		B10000000000000000000013 /* FileImportManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileImportManager.swift; sourceTree = "<group>"; };
+		B10000000000000000000014 /* Tempo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tempo.swift; sourceTree = "<group>"; };
+		B10000000000000000000015 /* MIDIManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MIDIManager.swift; sourceTree = "<group>"; };
+		B10000000000000000000016 /* SnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotStore.swift; sourceTree = "<group>"; };
+		B10000000000000000000017 /* StoreManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreManager.swift; sourceTree = "<group>"; };
+		B10000000000000000000018 /* USBMatrixStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBMatrixStore.swift; sourceTree = "<group>"; };
+		B10000000000000000000019 /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
+		B1000000000000000000001A /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		B1000000000000000000001B /* DiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsView.swift; sourceTree = "<group>"; };
+		B1000000000000000000001C /* CrashReporting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrashReporting.swift; sourceTree = "<group>"; };
+		B1000000000000000000001D /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		B20000000000000000000001 /* Engine.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Engine.cpp; sourceTree = "<group>"; };
 		B20000000000000000000002 /* Engine.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Engine.hpp; sourceTree = "<group>"; };
 		B20000000000000000000003 /* RingBuffer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RingBuffer.hpp; sourceTree = "<group>"; };
@@ -109,6 +133,18 @@
 				B1000000000000000000000B /* FXView.swift */,
 				B1000000000000000000000C /* LibraryView.swift */,
 				B1000000000000000000000D /* LinkView.swift */,
+				B10000000000000000000012 /* LibraryStore.swift */,
+				B10000000000000000000013 /* FileImportManager.swift */,
+				B10000000000000000000014 /* Tempo.swift */,
+				B10000000000000000000015 /* MIDIManager.swift */,
+				B10000000000000000000016 /* SnapshotStore.swift */,
+				B10000000000000000000017 /* StoreManager.swift */,
+				B10000000000000000000018 /* USBMatrixStore.swift */,
+				B10000000000000000000019 /* PaywallView.swift */,
+				B1000000000000000000001A /* OnboardingView.swift */,
+				B1000000000000000000001B /* DiagnosticsView.swift */,
+				B1000000000000000000001C /* CrashReporting.swift */,
+				B1000000000000000000001D /* PrivacyInfo.xcprivacy */,
 				B10000000000000000000011 /* SideKit-Bridging-Header.h */,
 				B1000000000000000000000E /* Assets.xcassets */,
 				E10000000000000000000004 /* Preview Content */,
@@ -250,6 +286,7 @@
 			files = (
 				A1000000000000000000000E /* Assets.xcassets in Resources */,
 				A1000000000000000000000F /* Preview Assets.xcassets in Resources */,
+				A1000000000000000000001D /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -274,6 +311,17 @@
 				A1000000000000000000000B /* FXView.swift in Sources */,
 				A1000000000000000000000C /* LibraryView.swift in Sources */,
 				A1000000000000000000000D /* LinkView.swift in Sources */,
+				A10000000000000000000012 /* LibraryStore.swift in Sources */,
+				A10000000000000000000013 /* FileImportManager.swift in Sources */,
+				A10000000000000000000014 /* Tempo.swift in Sources */,
+				A10000000000000000000015 /* MIDIManager.swift in Sources */,
+				A10000000000000000000016 /* SnapshotStore.swift in Sources */,
+				A10000000000000000000017 /* StoreManager.swift in Sources */,
+				A10000000000000000000018 /* USBMatrixStore.swift in Sources */,
+				A10000000000000000000019 /* PaywallView.swift in Sources */,
+				A1000000000000000000001A /* OnboardingView.swift in Sources */,
+				A1000000000000000000001B /* DiagnosticsView.swift in Sources */,
+				A1000000000000000000001C /* CrashReporting.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -362,7 +410,7 @@
 				INFOPLIST_KEY_UIBackgroundModes = audio;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -384,7 +432,7 @@
 				SWIFT_OBJC_BRIDGING_HEADER = "SideKit/SideKit-Bridging-Header.h";
 				SWIFT_STRICT_CONCURRENCY = targeted;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
@@ -411,7 +459,7 @@
 				INFOPLIST_KEY_UIBackgroundModes = audio;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -433,7 +481,7 @@
 				SWIFT_OBJC_BRIDGING_HEADER = "SideKit/SideKit-Bridging-Header.h";
 				SWIFT_STRICT_CONCURRENCY = targeted;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
