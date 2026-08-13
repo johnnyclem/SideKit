@@ -17,26 +17,36 @@ struct LibraryView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Library")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(SKTheme.fg)
-                Spacer()
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 13))
+                        .foregroundStyle(SKTheme.subtle)
+                    TextField("Search", text: $store.libraryFilter)
+                        .font(.system(size: 14))
+                        .foregroundStyle(SKTheme.fg)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                }
+                .padding(.horizontal, 12)
+                .frame(height: 36)
+                .background(SKTheme.inset)
+                .clipShape(RoundedRectangle(cornerRadius: SKTheme.radiusMD, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: SKTheme.radiusMD, style: .continuous)
+                        .stroke(SKTheme.border, lineWidth: 1)
+                )
+
                 Button {
                     importing = true
                 } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "square.and.arrow.down")
-                        Text(store.isDecoding ? "DECODING…" : "IMPORT")
-                    }
-                    .font(.system(size: 10, weight: .semibold))
-                    .tracking(0.6)
-                    .foregroundStyle(SKTheme.accentFg)
-                    .padding(.horizontal, 12)
-                    .frame(height: 32)
-                    .background(SKTheme.accent)
-                    .clipShape(Capsule())
+                    Image(systemName: store.isDecoding ? "hourglass" : "square.and.arrow.down")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(SKTheme.accentFg)
+                        .frame(width: 36, height: 36)
+                        .background(SKTheme.accent)
+                        .clipShape(Circle())
                 }
                 .buttonStyle(.plain)
                 .disabled(store.isDecoding)
@@ -49,93 +59,67 @@ struct LibraryView: View {
                     Text(banner)
                         .font(.system(size: 12))
                         .foregroundStyle(SKTheme.fg)
-                        .fixedSize(horizontal: false, vertical: true)
+                        .lineLimit(2)
                     Spacer(minLength: 4)
-                    Button("Dismiss") { store.dismissDecodeBanner() }
+                    Button("OK") { store.dismissDecodeBanner() }
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(SKTheme.muted)
                 }
-                .padding(10)
+                .padding(8)
                 .background(SKTheme.warn.opacity(0.12))
-                .clipShape(RoundedRectangle(cornerRadius: SKTheme.radiusMD, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: SKTheme.radiusMD, style: .continuous)
-                        .stroke(SKTheme.warn.opacity(0.35), lineWidth: 1)
-                )
+                .clipShape(RoundedRectangle(cornerRadius: SKTheme.radiusSM, style: .continuous))
             }
-
-            Text("WAV, AIFF, MP3, AAC, M4A, ALAC. Non-48 kHz files resample on load.")
-                .font(.system(size: 11))
-                .foregroundStyle(SKTheme.subtle)
-                .fixedSize(horizontal: false, vertical: true)
-
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 13))
-                    .foregroundStyle(SKTheme.subtle)
-                TextField("Search tracks, key, artist", text: $store.libraryFilter)
-                    .font(.system(size: 14))
-                    .foregroundStyle(SKTheme.fg)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-            }
-            .padding(.horizontal, 12)
-            .frame(height: 40)
-            .background(SKTheme.inset)
-            .clipShape(RoundedRectangle(cornerRadius: SKTheme.radiusMD, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: SKTheme.radiusMD, style: .continuous)
-                    .stroke(SKTheme.border, lineWidth: 1)
-            )
 
             HStack(spacing: 6) {
-                loadBtn(1, "Load → Deck A")
-                loadBtn(2, "Load → Deck B")
+                loadBtn(1, "→ A")
+                loadBtn(2, "→ B")
             }
 
-            VStack(spacing: 6) {
-                ForEach(filtered) { track in
-                    Button {
-                        store.selectedTrackId = track.id
-                        store.loadTrack(ch: store.loadTarget, id: track.id)
-                    } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: track.isImported ? "waveform" : "opticaldisc")
-                                .font(.system(size: 18))
-                                .foregroundStyle(SKTheme.meter)
-                                .frame(width: 40, height: 40)
-                                .background(SKTheme.inset)
-                                .clipShape(RoundedRectangle(cornerRadius: SKTheme.radiusSM, style: .continuous))
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(track.title)
-                                    .font(.system(size: 14, weight: .medium))
-                                    .foregroundStyle(SKTheme.fg)
-                                    .lineLimit(1)
-                                Text("\(track.artist) · \(track.key)")
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(SKTheme.muted)
-                                    .lineLimit(1)
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 6) {
+                    ForEach(filtered) { track in
+                        Button {
+                            store.selectedTrackId = track.id
+                            store.loadTrack(ch: store.loadTarget, id: track.id)
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: track.isImported ? "waveform" : "opticaldisc")
+                                    .font(.system(size: 18))
+                                    .foregroundStyle(SKTheme.meter)
+                                    .frame(width: 36, height: 36)
+                                    .background(SKTheme.inset)
+                                    .clipShape(RoundedRectangle(cornerRadius: SKTheme.radiusSM, style: .continuous))
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(track.title)
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundStyle(SKTheme.fg)
+                                        .lineLimit(1)
+                                    Text("\(track.artist) · \(track.key)")
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(SKTheme.muted)
+                                        .lineLimit(1)
+                                }
+                                Spacer()
+                                VStack(alignment: .trailing, spacing: 2) {
+                                    Text(Formatters.bpm(track.bpm))
+                                        .font(.system(size: 11, design: .monospaced))
+                                        .foregroundStyle(SKTheme.muted)
+                                    Text(Formatters.time(track.duration))
+                                        .font(.system(size: 11, design: .monospaced))
+                                        .foregroundStyle(SKTheme.subtle)
+                                    badge(track)
+                                }
                             }
-                            Spacer()
-                            VStack(alignment: .trailing, spacing: 2) {
-                                Text(Formatters.bpm(track.bpm))
-                                    .font(.system(size: 11, design: .monospaced))
-                                    .foregroundStyle(SKTheme.muted)
-                                Text(Formatters.time(track.duration))
-                                    .font(.system(size: 11, design: .monospaced))
-                                    .foregroundStyle(SKTheme.subtle)
-                                badge(track)
-                            }
+                            .padding(10)
+                            .background(store.selectedTrackId == track.id ? SKTheme.chrome : SKTheme.panel)
+                            .clipShape(RoundedRectangle(cornerRadius: SKTheme.radiusMD, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: SKTheme.radiusMD, style: .continuous)
+                                    .stroke(store.selectedTrackId == track.id ? SKTheme.borderStrong : SKTheme.border, lineWidth: 1)
+                            )
                         }
-                        .padding(10)
-                        .background(store.selectedTrackId == track.id ? SKTheme.chrome : SKTheme.panel)
-                        .clipShape(RoundedRectangle(cornerRadius: SKTheme.radiusMD, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: SKTheme.radiusMD, style: .continuous)
-                                .stroke(store.selectedTrackId == track.id ? SKTheme.borderStrong : SKTheme.border, lineWidth: 1)
-                        )
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
             }
         }
@@ -180,7 +164,7 @@ struct LibraryView: View {
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(store.loadTarget == ch ? SKTheme.accentFg : SKTheme.muted)
                 .frame(maxWidth: .infinity)
-                .frame(height: 36)
+                .frame(height: 32)
                 .background(store.loadTarget == ch ? SKTheme.accent : SKTheme.panel)
                 .clipShape(RoundedRectangle(cornerRadius: SKTheme.radiusSM, style: .continuous))
                 .overlay(

@@ -9,8 +9,8 @@ struct RootView: View {
             VStack(spacing: 0) {
                 StatusHeader()
                     .padding(.horizontal, 16)
-                    .padding(.top, 4)
-                    .padding(.bottom, 8)
+                    .padding(.top, 2)
+                    .padding(.bottom, 6)
 
                 if let banner = store.decodeBanner, store.tab != .library {
                     HStack(alignment: .top, spacing: 8) {
@@ -19,29 +19,27 @@ struct RootView: View {
                         Text(banner)
                             .font(.system(size: 11))
                             .foregroundStyle(SKTheme.fg)
-                            .fixedSize(horizontal: false, vertical: true)
+                            .lineLimit(2)
                         Spacer(minLength: 0)
                         Button("OK") { store.dismissDecodeBanner() }
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundStyle(SKTheme.muted)
                     }
                     .padding(.horizontal, 16)
-                    .padding(.bottom, 8)
+                    .padding(.bottom, 6)
                 }
 
-                ScrollView(.vertical, showsIndicators: false) {
-                    Group {
-                        switch store.tab {
-                        case .mixer: MixerView()
-                        case .decks: DecksView()
-                        case .fx: FXView()
-                        case .library: LibraryView()
-                        case .link: LinkView()
-                        }
+                Group {
+                    switch store.tab {
+                    case .mixer: MixerView()
+                    case .decks: DecksView()
+                    case .fx: FXView()
+                    case .library: LibraryView()
+                    case .link: LinkView()
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 96)
                 }
+                .padding(.horizontal, 12)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -55,46 +53,27 @@ struct StatusHeader: View {
     @EnvironmentObject private var store: MixerStore
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(store.linked ? SKTheme.ok : SKTheme.subtle)
-                        .frame(width: 6, height: 6)
-                    Text(store.linked ? "LINKED" : "OFFLINE")
-                        .font(.system(size: 10, weight: .semibold))
-                        .tracking(1.4)
-                        .foregroundStyle(SKTheme.subtle)
-                }
-                Spacer()
-                Text(Formatters.bpm(store.displayBpm) + " BPM")
+        HStack(spacing: 8) {
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(store.linked ? SKTheme.ok : SKTheme.subtle)
+                    .frame(width: 6, height: 6)
+                Text(store.linked ? "SIDEKICK" : "OFFLINE")
+                    .font(.system(size: 10, weight: .semibold))
+                    .tracking(1.2)
+                    .foregroundStyle(SKTheme.subtle)
+            }
+            Spacer()
+            Text(Formatters.bpm(store.displayBpm) + " BPM")
+                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                .foregroundStyle(SKTheme.fg)
+            if store.linked {
+                Text("\(store.battery)%")
                     .font(.system(size: 10, weight: .medium, design: .monospaced))
                     .foregroundStyle(SKTheme.muted)
-                if store.linked {
-                    Text("\(store.battery)%")
-                        .font(.system(size: 10, weight: .medium, design: .monospaced))
-                        .foregroundStyle(SKTheme.muted)
-                        .padding(.leading, 8)
-                }
-            }
-
-            HStack(alignment: .bottom) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("TE COMPANION")
-                        .font(.system(size: 10, weight: .semibold))
-                        .tracking(2.4)
-                        .foregroundStyle(SKTheme.subtle)
-                    Text("SideKit")
-                        .font(.system(size: 22, weight: .semibold))
-                        .foregroundStyle(SKTheme.fg)
-                }
-                Spacer()
-                Text("Brain for\nK.O. Sidekick")
-                    .font(.system(size: 10))
-                    .foregroundStyle(SKTheme.muted)
-                    .multilineTextAlignment(.trailing)
             }
         }
+        .frame(height: 28)
     }
 }
 

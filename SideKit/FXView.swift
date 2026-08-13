@@ -4,21 +4,18 @@ struct FXView: View {
     @EnvironmentObject private var store: MixerStore
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Performance FX")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(SKTheme.fg)
+                Text(store.fx.label.uppercased())
+                    .font(.system(size: 11, weight: .semibold))
+                    .tracking(1.2)
+                    .foregroundStyle(SKTheme.subtle)
                 Spacer()
                 Text(store.fxActive ? "ENGAGED" : "STANDBY")
                     .font(.system(size: 10, weight: .semibold))
                     .tracking(1.4)
                     .foregroundStyle(store.fxActive ? SKTheme.ok : SKTheme.subtle)
             }
-
-            Text("Six Sidekick-style punch-in effects. Hold the pad to engage — X/Y map to the selected effect.")
-                .font(.system(size: 11))
-                .foregroundStyle(SKTheme.subtle)
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 6) {
                 ForEach(FxId.allCases) { item in
@@ -31,7 +28,7 @@ struct FXView: View {
                             .tracking(0.6)
                             .foregroundStyle(store.fx == item ? SKTheme.accentFg : SKTheme.muted)
                             .frame(maxWidth: .infinity)
-                            .frame(height: 44)
+                            .frame(height: 40)
                             .background(store.fx == item ? SKTheme.accent : SKTheme.panel)
                             .clipShape(RoundedRectangle(cornerRadius: SKTheme.radiusSM, style: .continuous))
                             .overlay(
@@ -52,6 +49,7 @@ struct FXView: View {
                 store.fxActive = down
                 store.setFxPad(x: x, y: y)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             HStack(spacing: 10) {
                 Text("DEPTH")
@@ -78,10 +76,6 @@ struct FXView: View {
                 }
                 .buttonStyle(.plain)
             }
-
-            Text("Hold the pad to engage. Matches Sidekick force pad + mod stick workflow.")
-                .font(.system(size: 11))
-                .foregroundStyle(SKTheme.subtle)
         }
     }
 }
@@ -105,7 +99,7 @@ struct ForcePad: View {
                 }
                 .stroke(SKTheme.borderStrong.opacity(0.5), lineWidth: 1)
 
-                Text("MOD STICK / FORCE PAD")
+                Text("FORCE PAD")
                     .font(.system(size: 10))
                     .tracking(1)
                     .foregroundStyle(SKTheme.subtle)
@@ -130,13 +124,6 @@ struct ForcePad: View {
                 RoundedRectangle(cornerRadius: SKTheme.radiusMD, style: .continuous)
                     .stroke(SKTheme.borderStrong, lineWidth: 1)
             )
-            .overlay {
-                if active {
-                    RoundedRectangle(cornerRadius: SKTheme.radiusMD, style: .continuous)
-                        .fill(SKTheme.accent.opacity(0.05))
-                        .allowsHitTesting(false)
-                }
-            }
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { g in
@@ -149,6 +136,5 @@ struct ForcePad: View {
                     }
             )
         }
-        .aspectRatio(4 / 3, contentMode: .fit)
     }
 }

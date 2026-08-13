@@ -54,7 +54,7 @@ struct KnobView: View {
 
 struct VerticalFader: View {
     @Binding var value: Double
-    var height: CGFloat = 148
+    var height: CGFloat? = nil
 
     var body: some View {
         GeometryReader { geo in
@@ -67,19 +67,19 @@ struct VerticalFader: View {
                 RoundedRectangle(cornerRadius: 3)
                     .fill(SKTheme.accent)
                     .frame(width: 22, height: 10)
-                    .offset(y: -(value * (h - 10)))
+                    .offset(y: -(value * max(0, h - 10)))
             }
             .frame(width: w, height: h)
             .contentShape(Rectangle())
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { g in
-                        let y = 1 - (g.location.y / h)
+                        let y = 1 - (g.location.y / max(h, 1))
                         value = min(1, max(0, y))
                     }
             )
         }
-        .frame(width: 28, height: height)
+        .frame(height: height)
     }
 }
 

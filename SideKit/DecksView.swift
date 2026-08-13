@@ -4,20 +4,28 @@ struct DecksView: View {
     @EnvironmentObject private var store: MixerStore
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Virtual Decks")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(SKTheme.fg)
-                Spacer()
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                HStack(spacing: 0) {
+                    deckSwitch(1, "A", playing: store.ch1.playing)
+                    deckSwitch(2, "B", playing: store.ch2.playing)
+                }
+                .padding(2)
+                .background(SKTheme.inset)
+                .clipShape(RoundedRectangle(cornerRadius: SKTheme.radiusSM, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: SKTheme.radiusSM, style: .continuous)
+                        .stroke(SKTheme.border, lineWidth: 1)
+                )
+
                 Button {
                     store.beatMatch.toggle()
                 } label: {
-                    Text(store.beatMatch ? "BEAT MATCH ON" : "BEAT MATCH OFF")
+                    Text(store.beatMatch ? "SYNC ON" : "SYNC OFF")
                         .font(.system(size: 10, weight: .semibold))
                         .tracking(0.6)
                         .foregroundStyle(store.beatMatch ? SKTheme.accentFg : SKTheme.muted)
-                        .padding(.horizontal, 12)
+                        .padding(.horizontal, 10)
                         .frame(height: 32)
                         .background(store.beatMatch ? SKTheme.accent : SKTheme.inset)
                         .clipShape(Capsule())
@@ -26,34 +34,42 @@ struct DecksView: View {
                 .buttonStyle(.plain)
             }
 
-            Text("Two decks from the phone library. Route each into Sidekick CH1/CH2, or mix in SideKit and send master over USB.")
-                .font(.system(size: 11))
-                .foregroundStyle(SKTheme.subtle)
-                .fixedSize(horizontal: false, vertical: true)
-
+            let ch = store.focusDeck
             DeckPanelView(
-                ch: 1,
-                accent: SKTheme.chA,
-                channel: store.ch1,
-                meter: store.meters.ch1,
-                onToggle: { store.togglePlay(1) },
-                onPitch: { p in store.updateChannel(1) { $0.pitch = p } },
-                onSeek: { pos in store.seekDeck(1, pos) },
-                onRestart: { store.restartDeck(1) },
-                onSync: { store.syncBpm(from: 1) }
+                ch: ch,
+                accent: ch == 1 ? SKTheme.chA : SKTheme.chB,
+                channel: ch == 1 ? store.ch1 : store.ch2,
+                meter: ch == 1 ? store.meters.ch1 : store.meters.ch2,
+                onToggle: { store.togglePlay(ch) },
+                onPitch: { p in store.updateChannel(ch) { $0.pitch = p } },
+                onSeek: { pos in store.seekDeck(ch, pos) },
+                onRestart: { store.restartDeck(ch) },
+                onSync: { store.syncBpm(from: ch) }
             )
-            DeckPanelView(
-                ch: 2,
-                accent: SKTheme.chB,
-                channel: store.ch2,
-                meter: store.meters.ch2,
-                onToggle: { store.togglePlay(2) },
-                onPitch: { p in store.updateChannel(2) { $0.pitch = p } },
-                onSeek: { pos in store.seekDeck(2, pos) },
-                onRestart: { store.restartDeck(2) },
-                onSync: { store.syncBpm(from: 2) }
-            )
+            .frame(maxHeight: .infinity)
         }
+    }
+
+    private func deckSwitch(_ ch: Int, _ name: String, playing: Bool) -> some View {
+        Button {
+            store.focusDeck = ch
+        } label: {
+            HStack(spacing: 5) {
+                Text("DECK \(name)")
+                    .font(.system(size: 11, weight: .semibold))
+                if playing {
+                    Circle()
+                        .fill(store.focusDeck == ch ? SKTheme.accentFg.opacity(0.8) : SKTheme.ok)
+                        .frame(width: 6, height: 6)
+                }
+            }
+            .foregroundStyle(store.focusDeck == ch ? SKTheme.accentFg : SKTheme.muted)
+            .frame(maxWidth: .infinity)
+            .frame(height: 32)
+            .background(store.focusDeck == ch ? SKTheme.accent : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -171,13 +187,10 @@ struct DeckPanelView: View {
                         .frame(width: 48, alignment: .trailing)
                 }
                 .buttonStyle(.plain)
-                .simultaneousGesture(
-                    TapGesture(count: 2).onEnded { onPitch(0) }
-                )
             }
-            .help("Drag to time-stretch ±8% (key lock). Double-tap to reset.")
         }
         .padding(12)
+        .frame(maxHeight: .infinity, alignment: .top)
         .skPanel()
     }
 

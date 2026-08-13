@@ -27,6 +27,7 @@ final class MixerStore: ObservableObject {
     @Published var libraryFilter: String = ""
     @Published var selectedTrackId: String? = "t6"
     @Published var loadTarget: Int = 1
+    @Published var focusDeck: Int = 1
     @Published var meters: (ch1: Double, ch2: Double, master: Double) = (0, 0, 0)
     @Published var hardwareName: String?
     @Published var mixMode: MixMode = .internalMix
