@@ -34,7 +34,7 @@ final class HardwareMonitor {
         let names: [String] = ports.map { $0.portName }
 
         var usb = false
-        for port in ports where port.portType == .usbAudio || port.portType == .hdmi {
+        for port in ports where port.portType == .usbAudio || port.portType == .HDMI {
             usb = true
             break
         }
