@@ -30,14 +30,24 @@ final class HardwareMonitor {
         let session = AVAudioSession.sharedInstance()
         let outs = session.currentRoute.outputs
         let ins = session.currentRoute.inputs
-        let names = (outs + ins).map(\.portName)
-        let usb = (outs + ins).contains { port in
-            port.portType == .usbAudio || port.portType == .hdmi
+        let ports: [AVAudioSessionPortDescription] = outs + ins
+        let names: [String] = ports.map { $0.portName }
+
+        var usb = false
+        for port in ports where port.portType == .usbAudio || port.portType == .hdmi {
+            usb = true
+            break
         }
-        let match = names.contains { name in
+
+        var match = false
+        for name in names {
             let n = name.lowercased()
-            return n.contains("sidekick") || n.contains("ep-136") || n.contains("ep136") || n.contains("ko")
+            if n.contains("sidekick") || n.contains("ep-136") || n.contains("ep136") || n.contains("ko") {
+                match = true
+                break
+            }
         }
+
         let info = Info(
             deviceName: names.first,
             inputChannels: session.inputNumberOfChannels,
