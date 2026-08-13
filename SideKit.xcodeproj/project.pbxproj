@@ -22,6 +22,8 @@
 		A1000000000000000000000D /* LinkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000D /* LinkView.swift */; };
 		A10000000000000000000010 /* SKAudioBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000010 /* SKAudioBridge.swift */; };
 		A10000000000000000000012 /* FileDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000012 /* FileDecoder.swift */; };
+		A10000000000000000000015 /* PeakCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000015 /* PeakCache.swift */; };
+		A10000000000000000000016 /* WaveformView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000016 /* WaveformView.swift */; };
 		A10000000000000000000013 /* side_street_48k.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000013 /* side_street_48k.wav */; };
 		A10000000000000000000014 /* plastic_peg_441.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000014 /* plastic_peg_441.wav */; };
 		A1000000000000000000000E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000E /* Assets.xcassets */; };
@@ -58,6 +60,8 @@
 		B1000000000000000000000D /* LinkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkView.swift; sourceTree = "<group>"; };
 		B10000000000000000000010 /* SKAudioBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SKAudioBridge.swift; sourceTree = "<group>"; };
 		B10000000000000000000012 /* FileDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileDecoder.swift; sourceTree = "<group>"; };
+		B10000000000000000000015 /* PeakCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeakCache.swift; sourceTree = "<group>"; };
+		B10000000000000000000016 /* WaveformView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaveformView.swift; sourceTree = "<group>"; };
 		B10000000000000000000013 /* side_street_48k.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; name = side_street_48k.wav; path = Audio/side_street_48k.wav; sourceTree = "<group>"; };
 		B10000000000000000000014 /* plastic_peg_441.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; name = plastic_peg_441.wav; path = Audio/plastic_peg_441.wav; sourceTree = "<group>"; };
 		B10000000000000000000011 /* SideKit-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "SideKit-Bridging-Header.h"; sourceTree = "<group>"; };
@@ -109,6 +113,8 @@
 				B10000000000000000000005 /* AudioEngine.swift */,
 				B10000000000000000000010 /* SKAudioBridge.swift */,
 				B10000000000000000000012 /* FileDecoder.swift */,
+				B10000000000000000000015 /* PeakCache.swift */,
+				B10000000000000000000016 /* WaveformView.swift */,
 				B10000000000000000000013 /* side_street_48k.wav */,
 				B10000000000000000000014 /* plastic_peg_441.wav */,
 				B10000000000000000000006 /* HardwareMonitor.swift */,
@@ -278,6 +284,8 @@
 				A10000000000000000000005 /* AudioEngine.swift in Sources */,
 				A10000000000000000000010 /* SKAudioBridge.swift in Sources */,
 				A10000000000000000000012 /* FileDecoder.swift in Sources */,
+				A10000000000000000000015 /* PeakCache.swift in Sources */,
+				A10000000000000000000016 /* WaveformView.swift in Sources */,
 				A10000000000000000000006 /* HardwareMonitor.swift in Sources */,
 				A10000000000000000000007 /* Controls.swift in Sources */,
 				A10000000000000000000008 /* RootView.swift in Sources */,

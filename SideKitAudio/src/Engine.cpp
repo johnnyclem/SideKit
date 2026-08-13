@@ -1,5 +1,6 @@
 #include "Engine.hpp"
 #include "Decode.hpp"
+#include "Peaks.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -211,7 +212,7 @@ uint32_t Engine::render(float *interleaved, uint32_t frames) {
 
 extern "C" {
 
-const char *sk_engine_version(void) { return "0.5.0-sk012"; }
+const char *sk_engine_version(void) { return "0.6.0-sk013"; }
 
 SKEngine *sk_engine_create(double sample_rate, uint32_t channels) {
     auto *engine = new (std::nothrow) sidekit::Engine(sample_rate, channels);
@@ -352,5 +353,18 @@ int sk_wav_decode_file(const char *path, float **out_interleaved, uint32_t *fram
 }
 
 void sk_pcm_free(float *p) { delete[] p; }
+
+uint32_t sk_peaks_build(const float *interleaved, uint32_t frames, uint32_t channels, float *out_min, float *out_max,
+                        uint32_t bins) {
+    return sidekit::buildPeaks(interleaved, frames, channels, out_min, out_max, bins);
+}
+
+int sk_peaks_write(const char *path, uint32_t frames, const float *mn, const float *mx, uint32_t bins) {
+    return sidekit::writePeaks(path, frames, mn, mx, bins);
+}
+
+int sk_peaks_read(const char *path, uint32_t *frames, float *mn, float *mx, uint32_t bins_cap, uint32_t *bins_out) {
+    return sidekit::readPeaks(path, frames, mn, mx, bins_cap, bins_out);
+}
 
 } // extern "C"

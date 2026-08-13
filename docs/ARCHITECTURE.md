@@ -31,3 +31,4 @@ SK-004: lock-free params, dual-voice 48 kHz render, silence start/stop, no-alloc
 SK-010: ExtAudioFile decode, 48 kHz resample, clip slots, unsupported-codec banner.
 SK-011: 5 ms equal-power play/pause fades, frame-accurate seek, restart, UI playhead from engine.
 SK-012: WSOLA ±8% time-stretch (tempo in, key locked). Bypass at 0%.
+SK-013: cached min/max peaks (.skpeaks), Canvas overview, 60 fps playhead, drag-to-seek.

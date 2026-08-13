@@ -47,6 +47,16 @@ enum { SK_PITCH_MIN = -8, SK_PITCH_MAX = 8 };
 
 void sk_engine_set_pitch(SKEngine *engine, uint32_t ch, float percent);
 
+enum { SK_PEAK_BINS = 320 };
+
+/** Min/max overview. Returns bins written, or 0. */
+uint32_t sk_peaks_build(const float *interleaved, uint32_t frames, uint32_t channels, float *out_min, float *out_max,
+                        uint32_t bins);
+
+/** Cache sidecar. SK_OK / SK_ERR. */
+int sk_peaks_write(const char *path, uint32_t frames, const float *mn, const float *mx, uint32_t bins);
+int sk_peaks_read(const char *path, uint32_t *frames, float *mn, float *mx, uint32_t bins_cap, uint32_t *bins_out);
+
 const char *sk_engine_version(void);
 
 SKEngine *sk_engine_create(double sample_rate, uint32_t channels);

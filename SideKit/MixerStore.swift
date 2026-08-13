@@ -33,6 +33,7 @@ final class MixerStore: ObservableObject {
     @Published var imported: [Track] = []
     @Published var decodeBanner: String?
     @Published var isDecoding = false
+    @Published var peaksById: [String: PeakOverview] = [:]
 
     enum MixMode: String, CaseIterable, Identifiable {
         case external = "External"
@@ -67,6 +68,7 @@ final class MixerStore: ObservableObject {
         hardware.start()
         ticker.store = self
         let link = CADisplayLink(target: ticker, selector: #selector(DisplayTick.tick))
+        link.preferredFramesPerSecond = 60
         link.add(to: .main, forMode: .common)
         displayLink = link
         bindAudio()
@@ -137,6 +139,11 @@ final class MixerStore: ObservableObject {
         Task { await prepareClip(ch: ch) }
     }
 
+    func peaks(for trackId: String?) -> PeakOverview? {
+        guard let trackId else { return nil }
+        return peaksById[trackId]
+    }
+
     func dismissDecodeBanner() {
         decodeBanner = nil
     }
@@ -192,10 +199,12 @@ final class MixerStore: ObservableObject {
         do {
             let clip = try await audio.decodeFile(url: url)
             _ = audio.loadDecodedClip(ch: ch, clip: clip)
+            let overview = PeakCache.resolve(audioURL: url, pcm: clip.pcm, frames: clip.frames)
             if let idx = imported.firstIndex(where: { $0.id == tr.id }) {
                 imported[idx].duration = clip.duration
                 imported[idx].resampled = clip.resampled
             }
+            peaksById[tr.id] = overview
             decodeBanner = nil
         } catch {
             decodeBanner = error.localizedDescription

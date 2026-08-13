@@ -20,7 +20,7 @@ First tap Play to unlock the audio session. Deck A loads a bundled 48 kHz WAV. I
 | Tab | Native behavior |
 |---|---|
 | **Mixer** | Dual channel strips, gain / 3-band EQ knobs, faders, cue / mute / FX, compressor menu, DJ·Studio·Param EQ styles, crossfader, master / cue / phones |
-| **Decks** | Dual virtual decks, seek/restart/fades, WSOLA pitch ±8% (key lock), SYNC |
+| **Decks** | Dual virtual decks, real waveform + 60 fps playhead, seek/restart/fades, WSOLA ±8%, SYNC |
 | **FX** | Six punch-in FX (filter, delay, tape, repeat, tremolo, siren), force pad X/Y, depth, series/parallel |
 | **Library** | Demo tracks + Files import, search, load → Deck A/B, codec error banner |
 | **Link** | USB route watch for Sidekick / EP-136 / class-compliant USB, mix mode, 8×4 matrix |
@@ -29,7 +29,7 @@ Audio is **AVAudioEngine** (48 kHz I/O + FX) pulling a C++ render callback. Deco
 
 Hardware detection uses `AVAudioSession` route changes. Plug in a Sidekick over USB-C and Link should flip to connected when the port name matches.
 
-## C++ audio core (SK-001 / SK-004 / SK-010 / SK-011 / SK-012)
+## C++ audio core (SK-001 / SK-004 / SK-010–013)
 
 `SideKitAudio` is a static library linked into the app.
 
@@ -39,12 +39,13 @@ Hardware detection uses `AVAudioSession` route changes. Plug in a Sidekick over 
 - File clips: ExtAudioFile (device) / WAV+resample (host) → 48 kHz stereo float, double-buffered load
 - Transport: 5 ms equal-power fade, frame-accurate seek, restart, playhead mirrors engine
 - Pitch ±8% WSOLA time-stretch (key lock); 0% is bit-transparent
+- Waveform overview from cached min/max peaks; 60 fps playhead; tap/drag seek
 - Swift posts transport/mix/EQ/clips over the SPSC queue only
 - Host check: `make -C SideKitAudio test`
 
 On first Play, the console should print:
 
-`SideKit C++ 0.5.0-sk012 warmup frames=64 t=64 silent=true`
+`SideKit C++ 0.6.0-sk013 warmup frames=64 t=64 silent=true`
 
 Signing: **Automatic** / Apple Development. Select your Team in Xcode (Signing & Capabilities). `DEVELOPMENT_TEAM` is left blank on purpose.
 
@@ -77,9 +78,9 @@ SideKitAudio/
 
 ## Roadmap
 
-Sprint tickets: `docs/SPRINTS.md`. **SK-001, SK-004, SK-010–012 are done.** Next:
+Sprint tickets: `docs/SPRINTS.md`. **SK-001, SK-004, SK-010–013 are done.** Next:
 
-- SK-013 waveform overview + playhead
+- SK-014 BPM tags + onset fallback
 - SK-025/026 real USB 8×4 mix modes
 - SK-040 Core MIDI maps
 - SK-044 StoreKit Pro unlock

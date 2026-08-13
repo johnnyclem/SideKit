@@ -154,7 +154,7 @@ S0 Foundation → S1 Deck A → S2 Mixer+USB → S3 FX+Library → S4 Hardware+P
   - CPU < 15% single deck on iPhone 15
   - Reset to 0% on double-tap
 
-#### SK-013 — Waveform overview + playhead (Deck A)
+#### SK-013 — Waveform overview + playhead (Deck A) ✅
 - **Epic:** Decks · **PRD:** PRD-03 D-05 · **Owner:** Eng
 - **Priority/Size/Points:** P0 / M / 5
 - **Depends on:** SK-010

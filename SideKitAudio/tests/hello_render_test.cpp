@@ -60,8 +60,8 @@ static float goertzel(const float *x, int n, int stride, float freq, float sr) {
 
 int main() {
     const char *ver = sk_engine_version();
-    if (!ver || std::strstr(ver, "sk012") == nullptr) {
-        return fail("version should be sk012");
+    if (!ver || std::strstr(ver, "sk013") == nullptr) {
+        return fail("version should be sk013");
     }
 
     SKEngine *eng = sk_engine_create(48000.0, 2);
@@ -377,6 +377,39 @@ int main() {
             return 1;
         }
         std::printf("     stretch cpu %.3fs / 1s audio (%.0f%% core)\n", sec, sec * 100.0);
+    }
+
+    // 17. SK-013: peak overview + cache sidecar.
+    {
+        std::vector<float> tone;
+        fillSine(tone, 48000, 2, 48000.0, 440.f, 0.5f);
+        std::vector<float> mn(64, 0.f), mx(64, 0.f);
+        if (sk_peaks_build(tone.data(), 48000, 2, mn.data(), mx.data(), 64) != 64) {
+            return fail("peaks build");
+        }
+        int good = 0;
+        for (int i = 0; i < 64; ++i) {
+            if (mx[i] > 0.35f && mn[i] < -0.35f) {
+                ++good;
+            }
+        }
+        if (good < 60) {
+            std::fprintf(stderr, "FAIL: peak envelope good=%d/64 mx0=%f mn0=%f\n", good, mx[0], mn[0]);
+            return 1;
+        }
+        const char *cache = "/tmp/sk_peaks_test.skpeaks";
+        if (!sk_peaks_write(cache, 48000, mn.data(), mx.data(), 64)) {
+            return fail("peaks write");
+        }
+        std::vector<float> mn2(64, 0.f), mx2(64, 0.f);
+        uint32_t frames2 = 0, bins2 = 0;
+        if (!sk_peaks_read(cache, &frames2, mn2.data(), mx2.data(), 64, &bins2) || bins2 != 64 || frames2 != 48000) {
+            return fail("peaks read");
+        }
+        if (std::fabs(mn2[3] - mn[3]) > 1e-6f || std::fabs(mx2[3] - mx[3]) > 1e-6f) {
+            return fail("peaks cache mismatch");
+        }
+        std::remove(cache);
     }
 
     sk_engine_destroy(eng);

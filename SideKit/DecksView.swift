@@ -71,14 +71,6 @@ struct DeckPanelView: View {
 
     private var track: Track? { store.track(id: channel.trackId) }
 
-    private var wave: [Double] {
-        let seed = Double((channel.trackId ?? "x").unicodeScalars.first?.value ?? 1) + Double(ch * 17)
-        return (0..<48).map { i in
-            let n = abs(sin(seed * 0.7 + Double(i) * 0.55) * cos(Double(i) * 0.31 + seed))
-            return 0.15 + n * 0.85
-        }
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top) {
@@ -116,35 +108,12 @@ struct DeckPanelView: View {
                 }
             }
 
-            GeometryReader { geo in
-                let bars = wave
-                ZStack(alignment: .leading) {
-                    SKTheme.inset
-                    HStack(alignment: .bottom, spacing: 1) {
-                        ForEach(bars.indices, id: \.self) { i in
-                            let passed = Double(i) / Double(bars.count) <= channel.deckPos
-                            Capsule()
-                                .fill(passed ? SKTheme.accent.opacity(0.8) : SKTheme.borderStrong.opacity(0.7))
-                                .frame(height: 36 * bars[i])
-                        }
-                    }
-                    .padding(.horizontal, 4)
-                    .padding(.vertical, 6)
-                    Rectangle()
-                        .fill(SKTheme.accent)
-                        .frame(width: 1)
-                        .offset(x: geo.size.width * channel.deckPos)
-                }
-                .clipShape(RoundedRectangle(cornerRadius: SKTheme.radiusSM, style: .continuous))
-                .contentShape(Rectangle())
-                .gesture(
-                    SpatialTapGesture()
-                        .onEnded { event in
-                            onSeek(min(1, max(0, event.location.x / geo.size.width)))
-                        }
-                )
-            }
-            .frame(height: 48)
+            WaveformOverview(
+                peaks: store.peaks(for: channel.trackId),
+                playhead: channel.deckPos,
+                accent: accent,
+                onSeek: onSeek
+            )
 
             HorizontalMeter(level: meter)
 
