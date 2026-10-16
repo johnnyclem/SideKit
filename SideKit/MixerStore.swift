@@ -62,6 +62,13 @@ final class MixerStore: ObservableObject {
     private let ticker: DisplayTick
     private var cancellables = Set<AnyCancellable>()
     private var interrupted: Set<Int> = []
+    /// Which track's clip each deck currently holds in the engine, so play/pause does not
+    /// re-decode (and reset) the clip, and a decode in flight is not started twice.
+    private var loadedTrackId: [Int: String] = [:]
+    private var preparing: Set<Int> = []
+    /// Last engine `playing` flag per deck; only a true→false edge (end of clip) is mirrored
+    /// back into `ChannelState`, so a Play tap is not clobbered before the engine starts.
+    private var enginePlaying: [Int: Bool] = [1: false, 2: false]
 
     let library = LibraryStore.shared
     let iap = StoreManager.shared
@@ -371,6 +378,7 @@ final class MixerStore: ObservableObject {
                 state.hotCues = [nil, nil, nil, nil]
             }
             audio.clearClip(ch: ch)
+            loadedTrackId[ch] = nil
         }
         library.remove(id: id)
         peaksById.removeValue(forKey: id)
@@ -399,21 +407,38 @@ final class MixerStore: ObservableObject {
             masterBpm = track.bpm
         }
         _ = audio.loadDecodedClip(ch: ch, clip: preDecoded)
+        loadedTrackId[ch] = id
     }
 
+    /// Decode + load the deck's track into its engine clip slot. No-op when that track is
+    /// already loaded (so pause → play resumes in place) or a decode is already in flight.
     func prepareClip(ch: Int) async {
         let state = ch == 1 ? ch1 : ch2
-        guard let tr = track(id: state.trackId) else { return }
+        guard let tr = track(id: state.trackId) else {
+            audio.clearClip(ch: ch)
+            loadedTrackId[ch] = nil
+            return
+        }
+        if loadedTrackId[ch] == tr.id, audio.transportState(ch: ch).loaded != 0 { return }
+        guard !preparing.contains(ch) else { return }
         let url = tr.fileURL ?? BundledAudio.url(for: tr.id)
         guard let url else {
             audio.clearClip(ch: ch)
+            loadedTrackId[ch] = nil
             return
         }
+        preparing.insert(ch)
         isDecoding = true
-        defer { isDecoding = false }
+        defer {
+            preparing.remove(ch)
+            isDecoding = false
+        }
         do {
             let clip = try await audio.decodeFile(url: url)
+            // The deck may have been re-targeted while we were decoding.
+            guard (ch == 1 ? ch1.trackId : ch2.trackId) == tr.id else { return }
             _ = audio.loadDecodedClip(ch: ch, clip: clip)
+            loadedTrackId[ch] = tr.id
             let overview = PeakCache.resolve(audioURL: url, pcm: clip.pcm, frames: clip.frames)
             if tr.isImported {
                 library.update(id: tr.id) { item in
@@ -427,6 +452,7 @@ final class MixerStore: ObservableObject {
         } catch {
             decodeBanner = error.localizedDescription
             audio.clearClip(ch: ch)
+            loadedTrackId[ch] = nil
         }
     }
 
@@ -526,9 +552,11 @@ final class MixerStore: ObservableObject {
             let st = audio.transportState(ch: index)
             if st.loaded != 0, st.frames > 0 {
                 ch.deckPos = Double(st.playhead) / Double(st.frames)
-                if st.playing == 0 {
-                    ch.playing = false
+                let nowPlaying = st.playing != 0
+                if enginePlaying[index] == true, !nowPlaying, st.fading == 0 {
+                    ch.playing = false // reached the end of the clip
                 }
+                enginePlaying[index] = nowPlaying
                 return
             }
             guard ch.playing, let track = track(id: ch.trackId) else { return }
