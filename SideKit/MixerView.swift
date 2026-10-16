@@ -188,7 +188,8 @@ struct ChannelStripView: View {
                         .font(.system(size: 10, design: .monospaced))
                         .foregroundStyle(SKTheme.subtle)
                 }
-                .frame(width: 44, maxHeight: .infinity)
+                .frame(width: 44)
+                .frame(maxHeight: .infinity)
             }
             .frame(maxHeight: .infinity)
 
