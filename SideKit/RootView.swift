@@ -11,19 +11,18 @@ struct RootView: View {
         ZStack {
             SKTheme.bg.ignoresSafeArea()
             if isRegularWidth {
-                // SK-047: iPad landscape — two-column mixer+decks, no horizontal overflow.
+                // SK-047: iPad — mixer stays on the left, the tab switches the right column.
                 HStack(spacing: 0) {
                     VStack(spacing: 0) {
-                        StatusHeader(showDiagnostics: $showDiagnostics)
-                            .padding([.horizontal, .top], 16)
-                            .padding(.bottom, 8)
-                        ScrollView(.vertical, showsIndicators: false) {
-                            MixerView().padding(16)
-                        }
+                        header
+                        MixerView()
+                            .padding(.horizontal, 12)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     }
                     .frame(maxWidth: .infinity)
                     Divider().overlay(SKTheme.border)
-                    ScrollView(.vertical, showsIndicators: false) {
+                    VStack(spacing: 0) {
+                        banner
                         Group {
                             switch store.tab {
                             case .mixer, .decks: DecksView()
@@ -32,38 +31,32 @@ struct RootView: View {
                             case .link: LinkView()
                             }
                         }
-                        .padding(16)
+                        .padding(.horizontal, 12)
+                        .padding(.top, 8)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     }
                     .frame(maxWidth: .infinity)
                 }
-                .safeAreaInset(edge: .bottom, spacing: 0) {
-                    TabBar(tab: $store.tab)
-                }
             } else {
                 VStack(spacing: 0) {
-                    StatusHeader(showDiagnostics: $showDiagnostics)
-                        .padding(.horizontal, 16)
-                        .padding(.top, 4)
-                        .padding(.bottom, 8)
-
-                    ScrollView(.vertical, showsIndicators: false) {
-                        Group {
-                            switch store.tab {
-                            case .mixer: MixerView()
-                            case .decks: DecksView()
-                            case .fx: FXView()
-                            case .library: LibraryView()
-                            case .link: LinkView()
-                            }
+                    header
+                    banner
+                    Group {
+                        switch store.tab {
+                        case .mixer: MixerView()
+                        case .decks: DecksView()
+                        case .fx: FXView()
+                        case .library: LibraryView()
+                        case .link: LinkView()
                         }
-                        .padding(.horizontal, 12)
-                        .padding(.bottom, 96)
                     }
-                }
-                .safeAreaInset(edge: .bottom, spacing: 0) {
-                    TabBar(tab: $store.tab)
+                    .padding(.horizontal, 12)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 }
             }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            TabBar(tab: $store.tab)
         }
         .persistentSystemOverlays(.visible)
         .fullScreenCover(isPresented: $store.showOnboarding) {
@@ -76,6 +69,33 @@ struct RootView: View {
             DiagnosticsView()
         }
     }
+
+    private var header: some View {
+        StatusHeader(showDiagnostics: $showDiagnostics)
+            .padding(.horizontal, 16)
+            .padding(.top, 2)
+            .padding(.bottom, 6)
+    }
+
+    @ViewBuilder
+    private var banner: some View {
+        if let banner = store.decodeBanner, store.tab != .library {
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(SKTheme.warn)
+                Text(banner)
+                    .font(.system(size: 11))
+                    .foregroundStyle(SKTheme.fg)
+                    .lineLimit(2)
+                Spacer(minLength: 0)
+                Button("OK") { store.dismissDecodeBanner() }
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(SKTheme.muted)
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 6)
+        }
+    }
 }
 
 struct StatusHeader: View {
@@ -83,71 +103,53 @@ struct StatusHeader: View {
     @Binding var showDiagnostics: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(store.linked ? SKTheme.ok : SKTheme.subtle)
-                        .frame(width: 6, height: 6)
-                    Text(store.linked ? "LINKED" : "OFFLINE")
-                        .font(.system(size: 10, weight: .semibold))
-                        .tracking(1.4)
-                        .foregroundStyle(SKTheme.subtle)
-                }
-                Spacer()
-                Text(Formatters.bpm(store.displayBpm) + " BPM")
+        HStack(spacing: 8) {
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(store.linked ? SKTheme.ok : SKTheme.subtle)
+                    .frame(width: 6, height: 6)
+                Text(store.linked ? "SIDEKICK" : "OFFLINE")
+                    .font(.system(size: 10, weight: .semibold))
+                    .tracking(1.2)
+                    .foregroundStyle(SKTheme.subtle)
+            }
+            Spacer()
+            Text(Formatters.bpm(store.displayBpm) + " BPM")
+                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                .foregroundStyle(SKTheme.fg)
+            if store.linked {
+                Text("\(store.battery)%")
                     .font(.system(size: 10, weight: .medium, design: .monospaced))
                     .foregroundStyle(SKTheme.muted)
-                if store.linked {
-                    Text("\(store.battery)%")
-                        .font(.system(size: 10, weight: .medium, design: .monospaced))
-                        .foregroundStyle(SKTheme.muted)
-                        .padding(.leading, 8)
-                }
+            }
+            if !store.isPro {
                 Button {
-                    showDiagnostics = true
+                    store.showPaywall = true
                 } label: {
-                    Image(systemName: "gearshape")
-                        .font(.system(size: 12))
-                        .foregroundStyle(SKTheme.subtle)
-                        .padding(.leading, 10)
+                    Text("PRO")
+                        .font(.system(size: 9, weight: .bold))
+                        .tracking(0.6)
+                        .foregroundStyle(SKTheme.accentFg)
+                        .padding(.horizontal, 8)
+                        .frame(height: 20)
+                        .background(SKTheme.accent)
+                        .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Diagnostics and settings")
+                .accessibilityLabel("Upgrade to SideKit Pro")
             }
-
-            HStack(alignment: .bottom) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("TE COMPANION")
-                        .font(.system(size: 10, weight: .semibold))
-                        .tracking(2.4)
-                        .foregroundStyle(SKTheme.subtle)
-                    Text("SideKit")
-                        .font(.system(size: 22, weight: .semibold))
-                        .foregroundStyle(SKTheme.fg)
-                }
-                Spacer()
-                if !store.iap.isPro {
-                    Button { store.showPaywall = true } label: {
-                        Text("GO PRO")
-                            .font(.system(size: 10, weight: .bold))
-                            .tracking(0.6)
-                            .foregroundStyle(SKTheme.accentFg)
-                            .padding(.horizontal, 10)
-                            .frame(height: 26)
-                            .background(SKTheme.accent)
-                            .clipShape(Capsule())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Upgrade to SideKit Pro")
-                } else {
-                    Text("Brain for\nK.O. Sidekick")
-                        .font(.system(size: 10))
-                        .foregroundStyle(SKTheme.muted)
-                        .multilineTextAlignment(.trailing)
-                }
+            Button {
+                showDiagnostics = true
+            } label: {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 12))
+                    .foregroundStyle(SKTheme.subtle)
+                    .frame(width: 24, height: 24)
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Diagnostics and settings")
         }
+        .frame(height: 28)
     }
 }
 

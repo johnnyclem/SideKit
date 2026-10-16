@@ -4,11 +4,12 @@ struct FXView: View {
     @EnvironmentObject private var store: MixerStore
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Performance FX")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(SKTheme.fg)
+                Text(store.fx.label.uppercased())
+                    .font(.system(size: 11, weight: .semibold))
+                    .tracking(1.2)
+                    .foregroundStyle(SKTheme.subtle)
                 Spacer()
                 Text(store.fxActive ? "ENGAGED" : "STANDBY")
                     .font(.system(size: 10, weight: .semibold))
@@ -16,13 +17,9 @@ struct FXView: View {
                     .foregroundStyle(store.fxActive ? SKTheme.ok : SKTheme.subtle)
             }
 
-            Text("Six Sidekick-style punch-in effects. Hold the pad to engage — X/Y map to the selected effect.")
-                .font(.system(size: 11))
-                .foregroundStyle(SKTheme.subtle)
-
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 6) {
                 ForEach(FxId.allCases) { item in
-                    let locked = !store.iap.isPro && !MixerStore.freeFx.contains(item)
+                    let locked = !store.isPro && !MixerStore.freeFx.contains(item)
                     Button {
                         store.selectFx(item)
                     } label: {
@@ -34,18 +31,19 @@ struct FXView: View {
                                 Image(systemName: "lock.fill").font(.system(size: 8))
                             }
                         }
-                            .foregroundStyle(store.fx == item ? SKTheme.accentFg : (locked ? SKTheme.subtle : SKTheme.muted))
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 44)
-                            .background(store.fx == item ? SKTheme.accent : SKTheme.panel)
-                            .clipShape(RoundedRectangle(cornerRadius: SKTheme.radiusSM, style: .continuous))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: SKTheme.radiusSM, style: .continuous)
-                                    .stroke(store.fx == item ? SKTheme.accent.opacity(0.5) : SKTheme.border, lineWidth: 1)
-                            )
+                        .foregroundStyle(store.fx == item ? SKTheme.accentFg : (locked ? SKTheme.subtle : SKTheme.muted))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 40)
+                        .background(store.fx == item ? SKTheme.accent : SKTheme.panel)
+                        .clipShape(RoundedRectangle(cornerRadius: SKTheme.radiusSM, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: SKTheme.radiusSM, style: .continuous)
+                                .stroke(store.fx == item ? SKTheme.accent.opacity(0.5) : SKTheme.border, lineWidth: 1)
+                        )
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(item.label + (locked ? ", Pro feature" : ""))
+                    .accessibilityAddTraits(store.fx == item ? .isSelected : [])
                 }
             }
 
@@ -58,6 +56,7 @@ struct FXView: View {
                 store.fxActive = down
                 store.setFxPad(x: x, y: y)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             HStack(spacing: 10) {
                 Text("DEPTH")
@@ -67,6 +66,7 @@ struct FXView: View {
                 Slider(value: $store.fxDepth, in: 0...1)
                     .tint(SKTheme.accent)
                     .onChange(of: store.fxDepth) { _, _ in store.pushFx() }
+                    .accessibilityLabel("FX depth")
                 Button {
                     store.fxSeries.toggle()
                 } label: {
@@ -83,11 +83,9 @@ struct FXView: View {
                         )
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("FX routing")
+                .accessibilityValue(store.fxSeries ? "Series" : "Parallel")
             }
-
-            Text("Hold the pad to engage. Matches Sidekick force pad + mod stick workflow.")
-                .font(.system(size: 11))
-                .foregroundStyle(SKTheme.subtle)
         }
     }
 }
@@ -113,7 +111,7 @@ struct ForcePad: View {
                 }
                 .stroke(SKTheme.borderStrong.opacity(0.5), lineWidth: 1)
 
-                Text("MOD STICK / FORCE PAD")
+                Text("FORCE PAD")
                     .font(.system(size: 10))
                     .tracking(1)
                     .foregroundStyle(SKTheme.subtle)
@@ -136,15 +134,8 @@ struct ForcePad: View {
             .clipShape(RoundedRectangle(cornerRadius: SKTheme.radiusMD, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: SKTheme.radiusMD, style: .continuous)
-                    .stroke(SKTheme.borderStrong, lineWidth: 1)
+                    .stroke(active ? SKTheme.accent.opacity(0.6) : SKTheme.borderStrong, lineWidth: 1)
             )
-            .overlay {
-                if active {
-                    RoundedRectangle(cornerRadius: SKTheme.radiusMD, style: .continuous)
-                        .fill(SKTheme.accent.opacity(0.05))
-                        .allowsHitTesting(false)
-                }
-            }
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { g in
@@ -168,6 +159,5 @@ struct ForcePad: View {
                 }
             }
         }
-        .aspectRatio(4 / 3, contentMode: .fit)
     }
 }

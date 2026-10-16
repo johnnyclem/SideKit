@@ -6,33 +6,98 @@
 extern "C" {
 #endif
 
-/** Opaque C++ engine handle. Swift talks only to this C ABI. */
 typedef struct SKEngine SKEngine;
 
 typedef struct SKRenderInfo {
     uint32_t frames_rendered;
     uint64_t sample_time;
     float peak;
+    float peak_ch1;
+    float peak_ch2;
+    uint32_t commands_applied;
 } SKRenderInfo;
 
-/** Semantic version of the native audio core. */
+typedef struct SKClipInfo {
+    uint32_t frames;
+    uint32_t playhead;
+    uint32_t channels;
+    int loaded;
+    int playing;
+    int fading;
+    int looping;
+    uint32_t loop_start;
+    uint32_t loop_end;
+} SKClipInfo;
+
+enum {
+    SK_PATTERN_KICK = 0,
+    SK_PATTERN_BASS = 1,
+    SK_PATTERN_HAT = 2,
+    SK_PATTERN_SYNTH = 3,
+    SK_PATTERN_BREAK = 4
+};
+
+enum {
+    SK_OK = 1,
+    SK_ERR = 0
+};
+
+/** Equal-power start/stop fade length. */
+enum { SK_FADE_MS = 5 };
+
+/** DJ pitch fader range (percent). Time-stretch, key locked.
+ *  Engine hard limit is ±16 (Pro). The free tier clamps to ±8 in Swift. */
+enum { SK_PITCH_MIN = -16, SK_PITCH_MAX = 16, SK_PITCH_FREE_MAX = 8 };
+
+void sk_engine_set_pitch(SKEngine *engine, uint32_t ch, float percent);
+
+/** Sample-accurate loop region [start_frame, end_frame) in clip frames.
+ *  Wraps on the render thread; disabled when `enabled` is 0 or the region is < 64 frames.
+ *  If the playhead is outside the region when enabled, it jumps to start_frame. */
+void sk_engine_set_loop(SKEngine *engine, uint32_t ch, int enabled, uint32_t start_frame, uint32_t end_frame);
+
+enum { SK_PEAK_BINS = 320 };
+
+/** Min/max overview. Returns bins written, or 0. */
+uint32_t sk_peaks_build(const float *interleaved, uint32_t frames, uint32_t channels, float *out_min, float *out_max,
+                        uint32_t bins);
+
+/** Cache sidecar. SK_OK / SK_ERR. */
+int sk_peaks_write(const char *path, uint32_t frames, const float *mn, const float *mx, uint32_t bins);
+int sk_peaks_read(const char *path, uint32_t *frames, float *mn, float *mx, uint32_t bins_cap, uint32_t *bins_out);
+
 const char *sk_engine_version(void);
 
 SKEngine *sk_engine_create(double sample_rate, uint32_t channels);
 void sk_engine_destroy(SKEngine *engine);
 
-/**
- * Realtime render callback. Fills interleaved float32 [-1, 1].
- * Must be called from the audio thread. No allocations.
- * Returns frames written (always `frames` on success, 0 if engine is null).
- */
 uint32_t sk_engine_render(SKEngine *engine, float *interleaved, uint32_t frames);
-
 SKRenderInfo sk_engine_last_info(const SKEngine *engine);
 
-/** Off-thread control. Commands travel through a lock-free SPSC queue. */
+void sk_engine_set_master(SKEngine *engine, float linear);
+void sk_engine_set_crossfader(SKEngine *engine, float xf);
+void sk_engine_set_channel_mix(SKEngine *engine, uint32_t ch, float gain_db, float fader, int mute);
+void sk_engine_set_channel_eq(SKEngine *engine, uint32_t ch, float lo, float mid, float hi, float style_mul);
+void sk_engine_set_transport(SKEngine *engine, uint32_t ch, int playing, uint32_t pattern, float bpm);
 void sk_engine_set_test_tone(SKEngine *engine, int enabled, float hz);
 void sk_engine_set_output_gain(SKEngine *engine, float linear);
+
+int sk_engine_load_clip(SKEngine *engine, uint32_t ch, const float *interleaved, uint32_t frames, uint32_t channels);
+void sk_engine_clear_clip(SKEngine *engine, uint32_t ch);
+SKClipInfo sk_engine_clip_info(const SKEngine *engine, uint32_t ch);
+void sk_engine_set_clip_position(SKEngine *engine, uint32_t ch, float normalized);
+
+/** Frame-accurate seek. Lands on `frame` (clamped) after the next render consume. */
+void sk_engine_seek_frames(SKEngine *engine, uint32_t ch, uint32_t frame);
+
+/** Return playhead to 0. Keeps playing (with a 5 ms fade-in) if the deck was on. */
+void sk_engine_restart(SKEngine *engine, uint32_t ch);
+
+uint32_t sk_resample_stereo(const float *in, uint32_t in_frames, uint32_t in_ch, double in_sr,
+                            float *out, uint32_t out_capacity, double out_sr);
+
+int sk_wav_decode_file(const char *path, float **out_interleaved, uint32_t *frames, uint32_t *channels, double *sr);
+void sk_pcm_free(float *p);
 
 #ifdef __cplusplus
 }

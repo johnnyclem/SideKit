@@ -4,20 +4,28 @@ struct DecksView: View {
     @EnvironmentObject private var store: MixerStore
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Virtual Decks")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(SKTheme.fg)
-                Spacer()
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                HStack(spacing: 0) {
+                    deckSwitch(1, "A", playing: store.ch1.playing)
+                    deckSwitch(2, "B", playing: store.ch2.playing)
+                }
+                .padding(2)
+                .background(SKTheme.inset)
+                .clipShape(RoundedRectangle(cornerRadius: SKTheme.radiusSM, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: SKTheme.radiusSM, style: .continuous)
+                        .stroke(SKTheme.border, lineWidth: 1)
+                )
+
                 Button {
                     store.beatMatch.toggle()
                 } label: {
-                    Text(store.beatMatch ? "BEAT MATCH ON" : "BEAT MATCH OFF")
+                    Text(store.beatMatch ? "SYNC ON" : "SYNC OFF")
                         .font(.system(size: 10, weight: .semibold))
                         .tracking(0.6)
                         .foregroundStyle(store.beatMatch ? SKTheme.accentFg : SKTheme.muted)
-                        .padding(.horizontal, 12)
+                        .padding(.horizontal, 10)
                         .frame(height: 32)
                         .background(store.beatMatch ? SKTheme.accent : SKTheme.inset)
                         .clipShape(Capsule())
@@ -28,62 +36,67 @@ struct DecksView: View {
                 .accessibilityValue(store.beatMatch ? "On" : "Off")
             }
 
-            Text("Two decks from the phone library. Route each into Sidekick CH1/CH2, or mix in SideKit and send master over USB.")
-                .font(.system(size: 11))
-                .foregroundStyle(SKTheme.subtle)
-                .fixedSize(horizontal: false, vertical: true)
-
+            let ch = store.focusDeck
             DeckPanelView(
-                ch: 1,
-                accent: SKTheme.chA,
-                channel: store.ch1,
-                track: store.track(1),
-                meter: store.meters.ch1,
-                isPro: store.iap.isPro,
-                loopFlashing: store.loopFlash == 1,
-                onToggle: { store.togglePlay(1) },
-                onPitch: { p in store.updateChannel(1) { $0.pitch = p } },
-                onSeek: { pos in store.seek(1, toFraction: pos) },
-                onSync: { store.syncBpm(from: 1) },
-                onSetCue: { slot in store.setHotCue(1, slot: slot) },
-                onJumpCue: { slot in store.jumpToHotCue(1, slot: slot) },
-                onClearCue: { slot in store.clearHotCue(1, slot: slot) },
-                onToggleLoop: { store.toggleLoop(1) },
-                onNudgeLoop: { doubled in store.nudgeLoopLength(1, doubled: doubled) }
+                ch: ch,
+                accent: ch == 1 ? SKTheme.chA : SKTheme.chB,
+                channel: ch == 1 ? store.ch1 : store.ch2,
+                meter: ch == 1 ? store.meters.ch1 : store.meters.ch2,
+                onToggle: { store.togglePlay(ch) },
+                onPitch: { p in store.setPitch(ch, p) },
+                onSeek: { pos in store.seekDeck(ch, pos) },
+                onRestart: { store.restartDeck(ch) },
+                onSync: { store.syncBpm(from: ch) },
+                onSetCue: { slot in store.setHotCue(ch, slot: slot) },
+                onJumpCue: { slot in store.jumpToHotCue(ch, slot: slot) },
+                onClearCue: { slot in store.clearHotCue(ch, slot: slot) },
+                onToggleLoop: { store.toggleLoop(ch) },
+                onNudgeLoop: { doubled in store.nudgeLoopLength(ch, doubled: doubled) }
             )
-            DeckPanelView(
-                ch: 2,
-                accent: SKTheme.chB,
-                channel: store.ch2,
-                track: store.track(2),
-                meter: store.meters.ch2,
-                isPro: store.iap.isPro,
-                loopFlashing: store.loopFlash == 2,
-                onToggle: { store.togglePlay(2) },
-                onPitch: { p in store.updateChannel(2) { $0.pitch = p } },
-                onSeek: { pos in store.seek(2, toFraction: pos) },
-                onSync: { store.syncBpm(from: 2) },
-                onSetCue: { slot in store.setHotCue(2, slot: slot) },
-                onJumpCue: { slot in store.jumpToHotCue(2, slot: slot) },
-                onClearCue: { slot in store.clearHotCue(2, slot: slot) },
-                onToggleLoop: { store.toggleLoop(2) },
-                onNudgeLoop: { doubled in store.nudgeLoopLength(2, doubled: doubled) }
-            )
+            .frame(maxHeight: .infinity)
         }
+    }
+
+    private func deckSwitch(_ ch: Int, _ name: String, playing: Bool) -> some View {
+        Button {
+            store.focusDeck = ch
+        } label: {
+            HStack(spacing: 5) {
+                Text("DECK \(name)")
+                    .font(.system(size: 11, weight: .semibold))
+                if playing {
+                    Circle()
+                        .fill(store.focusDeck == ch ? SKTheme.accentFg.opacity(0.8) : SKTheme.ok)
+                        .frame(width: 6, height: 6)
+                }
+                if ch == 2 && !store.isPro {
+                    Image(systemName: "lock.fill").font(.system(size: 8))
+                }
+            }
+            .foregroundStyle(store.focusDeck == ch ? SKTheme.accentFg : SKTheme.muted)
+            .frame(maxWidth: .infinity)
+            .frame(height: 32)
+            .background(store.focusDeck == ch ? SKTheme.accent : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Deck \(name)")
+        .accessibilityAddTraits(store.focusDeck == ch ? .isSelected : [])
     }
 }
 
 struct DeckPanelView: View {
+    @EnvironmentObject private var store: MixerStore
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let ch: Int
     let accent: Color
     let channel: ChannelState
-    let track: Track?
     let meter: Double
-    let isPro: Bool
-    let loopFlashing: Bool
     let onToggle: () -> Void
     let onPitch: (Double) -> Void
     let onSeek: (Double) -> Void
+    let onRestart: () -> Void
     let onSync: () -> Void
     let onSetCue: (Int) -> Void
     let onJumpCue: (Int) -> Void
@@ -91,32 +104,20 @@ struct DeckPanelView: View {
     let onToggleLoop: () -> Void
     let onNudgeLoop: (Bool) -> Void
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private var track: Track? { store.track(id: channel.trackId) }
+    private var deckName: String { ch == 1 ? "A" : "B" }
+    private var duration: Double { track.map { store.duration(for: $0) } ?? 0 }
 
-    private var maxPitch: Double { isPro ? 16 : 8 }
-
-    /// Real cached peaks for imported files (SK-013); a deterministic procedural pattern
-    /// stands in for the bundled demo tracks, which ship with no audio asset yet.
-    private var wave: [Double] {
-        if let id = track?.id, let peaks = LibraryStore.shared.peaks(for: id), !peaks.isEmpty {
-            return downsample(peaks.map(Double.init), to: 48)
-        }
-        let seed = Double((channel.trackId ?? "x").unicodeScalars.first?.value ?? 1) + Double(ch * 17)
-        return (0..<48).map { i in
-            let n = abs(sin(seed * 0.7 + Double(i) * 0.55) * cos(Double(i) * 0.31 + seed))
-            return 0.15 + n * 0.85
-        }
+    private var loopRange: ClosedRange<Double>? {
+        guard channel.loopActive, duration > 0 else { return nil }
+        let start = min(1, max(0, channel.loopStartSec / duration))
+        let end = min(1, max(start, (channel.loopStartSec + channel.loopLengthSec) / duration))
+        return start...end
     }
 
-    private func downsample(_ values: [Double], to count: Int) -> [Double] {
-        guard values.count > count else { return values }
-        let bucket = Double(values.count) / Double(count)
-        return (0..<count).map { i in
-            let start = Int(Double(i) * bucket)
-            let end = min(values.count, Int(Double(i + 1) * bucket) + 1)
-            guard start < end else { return 0 }
-            return values[start..<end].max() ?? 0
-        }
+    private var cueMarks: [Double?] {
+        guard duration > 0 else { return [] }
+        return channel.hotCues.map { cue in cue.map { $0 / duration } }
     }
 
     var body: some View {
@@ -124,7 +125,7 @@ struct DeckPanelView: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
-                        Text("DECK \(ch == 1 ? "A" : "B")")
+                        Text("DECK \(deckName)")
                             .font(.system(size: 10, weight: .semibold))
                             .tracking(1.4)
                             .foregroundStyle(accent)
@@ -144,90 +145,26 @@ struct DeckPanelView: View {
                     Text(Formatters.bpm(channel.effectiveBpm))
                         .font(.system(size: 12, weight: .medium, design: .monospaced))
                         .foregroundStyle(SKTheme.fg)
-                    if let track {
-                        Text("\(Formatters.time(channel.deckPos * track.duration)) / \(Formatters.time(track.duration))")
-                            .font(.system(size: 11, design: .monospaced))
-                            .foregroundStyle(SKTheme.muted)
-                    } else {
-                        Text("0:00")
-                            .font(.system(size: 11, design: .monospaced))
-                            .foregroundStyle(SKTheme.muted)
-                    }
+                    Text(track != nil ? "\(Formatters.time(channel.deckPos * duration)) / \(Formatters.time(duration))" : "0:00")
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(SKTheme.muted)
                 }
             }
 
-            GeometryReader { geo in
-                let bars = wave
-                let loopRange: ClosedRange<Double>? = {
-                    guard channel.loopActive, let duration = track?.duration, duration > 0 else { return nil }
-                    let start = channel.loopStartSec / duration
-                    let end = min(1, (channel.loopStartSec + Tempo.beatsToSeconds(channel.loopLengthBeats, bpm: channel.effectiveBpm)) / duration)
-                    return start...max(start, end)
-                }()
-                ZStack(alignment: .leading) {
-                    SKTheme.inset
-                    if let loopRange {
-                        Rectangle()
-                            .fill((loopFlashing ? SKTheme.ok : SKTheme.warn).opacity(0.22))
-                            .frame(width: geo.size.width * (loopRange.upperBound - loopRange.lowerBound))
-                            .offset(x: geo.size.width * loopRange.lowerBound)
-                    }
-                    HStack(alignment: .bottom, spacing: 1) {
-                        ForEach(bars.indices, id: \.self) { i in
-                            let passed = Double(i) / Double(bars.count) <= channel.deckPos
-                            Capsule()
-                                .fill(passed ? SKTheme.accent.opacity(0.8) : SKTheme.borderStrong.opacity(0.7))
-                                .frame(height: 36 * bars[i])
-                        }
-                    }
-                    .padding(.horizontal, 4)
-                    .padding(.vertical, 6)
-                    ForEach(Array(channel.hotCues.enumerated()), id: \.offset) { idx, cue in
-                        if let cue, let duration = track?.duration, duration > 0 {
-                            Rectangle()
-                                .fill(SKTheme.chB)
-                                .frame(width: 2)
-                                .offset(x: geo.size.width * (cue / duration))
-                            Text("\(idx + 1)")
-                                .font(.system(size: 8, weight: .bold))
-                                .foregroundStyle(SKTheme.bg)
-                                .frame(width: 12, height: 12)
-                                .background(SKTheme.chB)
-                                .clipShape(Circle())
-                                .offset(x: geo.size.width * (cue / duration) - 6, y: -18)
-                        }
-                    }
-                    Rectangle()
-                        .fill(SKTheme.accent)
-                        .frame(width: 1)
-                        .offset(x: geo.size.width * channel.deckPos)
-                }
-                .clipShape(RoundedRectangle(cornerRadius: SKTheme.radiusSM, style: .continuous))
-                .contentShape(Rectangle())
-                .gesture(
-                    SpatialTapGesture()
-                        .onEnded { event in
-                            onSeek(min(1, max(0, event.location.x / geo.size.width)))
-                        }
-                )
-            }
-            .frame(height: 48)
-            .accessibilityLabel("Deck \(ch == 1 ? "A" : "B") waveform")
-            .accessibilityValue("\(Int(channel.deckPos * 100)) percent")
-            .accessibilityAdjustableAction { direction in
-                let step = 0.02
-                switch direction {
-                case .increment: onSeek(min(1, channel.deckPos + step))
-                case .decrement: onSeek(max(0, channel.deckPos - step))
-                @unknown default: break
-                }
-            }
+            WaveformOverview(
+                peaks: store.peaks(for: channel.trackId),
+                playhead: channel.deckPos,
+                accent: accent,
+                loop: loopRange,
+                cues: cueMarks,
+                onSeek: onSeek
+            )
 
             HorizontalMeter(level: meter)
 
             HStack(spacing: 8) {
-                circleBtn("backward.end.fill") { onSeek(0) }
-                    .accessibilityLabel("Restart deck \(ch == 1 ? "A" : "B")")
+                circleBtn("backward.end.fill") { onRestart() }
+                    .accessibilityLabel("Restart deck \(deckName)")
                 Button(action: onToggle) {
                     Image(systemName: channel.playing ? "pause.fill" : "play.fill")
                         .font(.system(size: 18, weight: .semibold))
@@ -238,7 +175,7 @@ struct DeckPanelView: View {
                         .overlay(Circle().stroke(SKTheme.borderStrong, lineWidth: 1))
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(channel.playing ? "Pause deck \(ch == 1 ? "A" : "B")" : "Play deck \(ch == 1 ? "A" : "B")")
+                .accessibilityLabel(channel.playing ? "Pause deck \(deckName)" : "Play deck \(deckName)")
                 Button(action: onSync) {
                     Label("SYNC", systemImage: "link")
                         .font(.system(size: 11, weight: .semibold))
@@ -250,14 +187,17 @@ struct DeckPanelView: View {
                         .overlay(Capsule().stroke(SKTheme.border, lineWidth: 1))
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Sync deck \(ch == 1 ? "A" : "B") to other deck's tempo")
+                .accessibilityLabel("Sync the other deck to deck \(deckName)")
                 Image(systemName: "opticaldisc")
                     .font(.system(size: 16))
                     .foregroundStyle(SKTheme.subtle)
                     .frame(width: 40, height: 40)
                     .overlay(Circle().stroke(SKTheme.border, lineWidth: 1))
                     .rotationEffect(.degrees(channel.playing && !reduceMotion ? 360 : 0))
-                    .animation(channel.playing && !reduceMotion ? .linear(duration: 3).repeatForever(autoreverses: false) : .default, value: channel.playing)
+                    .animation(
+                        channel.playing && !reduceMotion ? .linear(duration: 3).repeatForever(autoreverses: false) : .default,
+                        value: channel.playing
+                    )
                     .accessibilityHidden(true)
             }
 
@@ -267,11 +207,14 @@ struct DeckPanelView: View {
                     .foregroundStyle(SKTheme.subtle)
                     .frame(width: 36, alignment: .leading)
                 Slider(
-                    value: Binding(get: { channel.pitch }, set: { onPitch(min(maxPitch, max(-maxPitch, $0))) }),
-                    in: -maxPitch...maxPitch
+                    value: Binding(get: { channel.pitch }, set: onPitch),
+                    in: -store.maxPitch...store.maxPitch
                 )
                 .tint(SKTheme.accent)
-                .accessibilityLabel("Pitch, deck \(ch == 1 ? "A" : "B")")
+                .accessibilityLabel("Pitch, deck \(deckName)")
+                .simultaneousGesture(
+                    TapGesture(count: 2).onEnded { onPitch(0) }
+                )
                 Button {
                     onPitch(0)
                 } label: {
@@ -288,9 +231,9 @@ struct DeckPanelView: View {
                 ForEach(0..<4) { slot in
                     hotCueButton(slot)
                 }
-                Spacer(minLength: 8)
+                Spacer(minLength: 6)
                 Button(action: onToggleLoop) {
-                    Text(channel.loopActive ? "LOOP ●" : "LOOP")
+                    Text(channel.loopActive ? "LOOP \(loopLabel)" : "LOOP")
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(channel.loopActive ? SKTheme.accentFg : SKTheme.muted)
                         .padding(.horizontal, 10)
@@ -300,51 +243,64 @@ struct DeckPanelView: View {
                         .overlay(Capsule().stroke(SKTheme.border, lineWidth: channel.loopActive ? 0 : 1))
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(channel.loopActive ? "Loop on, \(Formatters.bpm(channel.loopLengthBeats)) beats" : "Loop off")
-                if channel.loopActive {
-                    Button { onNudgeLoop(false) } label: { Text("½").font(.system(size: 11, weight: .bold)) }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(SKTheme.muted)
-                        .frame(width: 24, height: 32)
-                        .accessibilityLabel("Halve loop length")
-                    Button { onNudgeLoop(true) } label: { Text("2×").font(.system(size: 10, weight: .bold)) }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(SKTheme.muted)
-                        .frame(width: 24, height: 32)
-                        .accessibilityLabel("Double loop length")
-                }
-            }
-            .opacity(isPro ? 1 : 0.45)
-            .overlay {
-                if !isPro {
-                    Text("Hot cues + loops are Pro")
-                        .font(.system(size: 9, weight: .semibold))
+                .accessibilityLabel(channel.loopActive ? "Loop on, \(loopLabel) beats" : "Loop off")
+                loopNudge("½", doubled: false)
+                loopNudge("2×", doubled: true)
+                if !store.isPro {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 9))
                         .foregroundStyle(SKTheme.subtle)
+                        .accessibilityLabel("Hot cues and loops are Pro")
                 }
             }
         }
         .padding(12)
+        .frame(maxHeight: .infinity, alignment: .top)
         .skPanel()
     }
 
-    private func hotCueButton(_ slot: Int) -> some View {
-        let set = channel.hotCues[slot] != nil
-        return Button {
-            if set { onJumpCue(slot) } else { onSetCue(slot) }
+    private var loopLabel: String {
+        let beats = channel.loopLengthBeats
+        if beats < 1 { return beats == 0.5 ? "½" : "¼" }
+        return "\(Int(beats))"
+    }
+
+    private func loopNudge(_ title: String, doubled: Bool) -> some View {
+        Button {
+            onNudgeLoop(doubled)
         } label: {
-            Text("\(slot + 1)")
+            Text(title)
                 .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(set ? SKTheme.bg : SKTheme.muted)
-                .frame(width: 32, height: 32)
-                .background(set ? SKTheme.chB : SKTheme.inset)
+                .foregroundStyle(SKTheme.muted)
+                .frame(width: 28, height: 32)
+                .background(SKTheme.inset)
                 .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).stroke(SKTheme.border, lineWidth: set ? 0 : 1))
+                .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).stroke(SKTheme.border, lineWidth: 1))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(set ? "Hot cue \(slot + 1), jump" : "Hot cue \(slot + 1), set")
-        .onLongPressGesture {
-            if set { onClearCue(slot) }
-        }
+        .accessibilityLabel(doubled ? "Double loop length" : "Halve loop length")
+    }
+
+    /// Tap: set (empty) or jump (set). Long press: clear. Plain gestures rather than a
+    /// `Button` so the long press cancels the tap instead of firing both.
+    private func hotCueButton(_ slot: Int) -> some View {
+        let isSet = channel.hotCues[slot] != nil
+        return Text("\(slot + 1)")
+            .font(.system(size: 11, weight: .bold))
+            .foregroundStyle(isSet ? SKTheme.bg : SKTheme.muted)
+            .frame(width: 32, height: 32)
+            .background(isSet ? SKTheme.chB : SKTheme.inset)
+            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).stroke(SKTheme.border, lineWidth: isSet ? 0 : 1))
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if isSet { onJumpCue(slot) } else { onSetCue(slot) }
+            }
+            .onLongPressGesture(minimumDuration: 0.5) {
+                if isSet { onClearCue(slot) }
+            }
+            .accessibilityAddTraits(.isButton)
+            .accessibilityLabel(isSet ? "Hot cue \(slot + 1), jump. Long press to clear." : "Hot cue \(slot + 1), set")
     }
 
     private func circleBtn(_ name: String, action: @escaping () -> Void) -> some View {

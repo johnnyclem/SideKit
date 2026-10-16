@@ -40,7 +40,7 @@ struct PaywallView: View {
                     } label: {
                         HStack {
                             if purchasing { ProgressView().tint(SKTheme.accentFg) }
-                            Text(store.product?.displayPrice.isEmpty == false ? "Unlock Pro — \(store.product!.displayPrice)" : "Unlock Pro")
+                            Text(store.product.map { "Unlock Pro — \($0.displayPrice)" } ?? "Unlock Pro")
                                 .font(.system(size: 14, weight: .semibold))
                         }
                         .foregroundStyle(SKTheme.accentFg)
@@ -52,6 +52,12 @@ struct PaywallView: View {
                     .buttonStyle(.plain)
                     .disabled(purchasing || store.product == nil)
                     .accessibilityLabel("Unlock SideKit Pro")
+
+                    if store.product == nil {
+                        Text("Pro isn't available on this build yet — the App Store product hasn't loaded.")
+                            .font(.system(size: 11))
+                            .foregroundStyle(SKTheme.subtle)
+                    }
 
                     Button {
                         Task {

@@ -6,6 +6,14 @@ on:
     branches: [main]
 
 jobs:
+  cpp-core:
+    name: SideKitAudio C++ core tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: make test
+        run: make -C SideKitAudio test
+
   lint:
     name: SwiftLint
     runs-on: macos-15

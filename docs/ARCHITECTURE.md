@@ -1,78 +1,98 @@
 # SideKit iOS architecture
 
 ```
-SwiftUI (portrait iPhone / adaptive iPad landscape)
+SwiftUI (portrait iPhone · two-column iPad)
   RootView → Mixer / Decks / FX / Library / Link
-       │
+       │          + Onboarding (first run) · Paywall (gated action) · Diagnostics sheet
        ▼
  MixerStore (@MainActor, ObservableObject)
+       │  owns all session state; posts to the engine over the SPSC queue only
        │
-       ├── AudioEngine (AVAudioEngine, 48 kHz)
-       │     ch1/ch2 players → AVAudioUnitVarispeed (pitch/tempo) → 3-band EQ ─┐
-       │       → channel mixers ──────────────────────────────────────────────┤
-       │     AVAudioSourceNode → sk_engine_render() (SideKitAudio, C++) ──────┴→ dryMixer → filter → delay → main
-       │     Two playback modes per channel, chosen when a track loads:
-       │       • pattern  — synthesized step-sequenced demo voices (no bundled audio yet)
-       │       • file     — real AVAudioFile via scheduleSegment, real seek/loop/hot cues
-       │     25 ms scheduler tick drives both pattern note scheduling and file-deck
-       │     loop wrap / position reporting.
-       ├── LibraryStore (imported-file metadata, peaks cache, persisted under
-       │     Application Support)
-       ├── HardwareMonitor (AVAudioSession route changes → Sidekick USB detection)
-       ├── MIDIManager (Core MIDI endpoints, Sidekick MIDI Control detection,
-       │     factory map, MIDI learn, persisted bindings)
-       ├── StoreManager (StoreKit 2 Pro non-consumable, offline-safe restore)
-       ├── SnapshotStore (mixer scene save/recall, UserDefaults-backed)
-       ├── USBMatrixStore (8x4 matrix role persistence per mix mode)
-       └── CrashReporting (opt-in, on-device MetricKit only — no third-party SDKs)
-
-SideKitAudio (static lib, C++, SK-001)
-  SpscRing<ParamCmd, 128>   UI → audio, lock-free
-  Engine::render()          no alloc, interleaved float32; hello callback only today
-  C ABI                     sidekit_audio.h, pulled via SKAudioBridge.swift
+       ├── FileDecoder (ExtAudioFile)      WAV / AIFF / MP3 / AAC / M4A / ALAC
+       │     client format = 48 kHz stereo float32  ← offline resample
+       ├── PeakCache                       min/max overview, .skpeaks sidecar (C++ build/read/write)
+       ├── LibraryStore                    imported-file index, Documents/Imports/library.json
+       │     └── BPMAnalyzer               ID3/iTunes BPM tag → onset-interval estimate
+       ├── HardwareMonitor                 AVAudioSession route changes → Sidekick USB detection
+       ├── MIDIManager                     Core MIDI endpoints, Sidekick detection, factory map, learn
+       ├── StoreManager                    StoreKit 2 non-consumable Pro, offline-safe restore
+       ├── SnapshotStore                   mixer scenes (UserDefaults)
+       ├── USBMatrixStore                  8×4 matrix roles per mix mode (UserDefaults)
+       └── CrashReporting                  opt-in on-device MetricKit, no third-party SDK
+       │
+       ▼
+ SKAudioBridge ──► SideKitAudio (static lib, C++17, 48 kHz)
+                     SpscRing<ParamCmd, 256>   UI → audio, lock-free
+                     consumeCommands()
+                     ClipBank × 2   double-buffered PCM, pointer swap on the render thread
+                     ChannelVoice × 2
+                       clip player: linear read or WSOLA time-stretch (±16 %, key locked)
+                       loop region [start, end) wrapped sample-accurately on the render thread
+                       5 ms equal-power fades on play / pause / seek
+                       pattern sequencer when no clip is attached (demo fallback)
+                     3-band EQ + equal-power crossfader + master
+                     sk_engine_render()   no allocations
+       │
+       ▼
+ AVAudioEngine
+   AVAudioSourceNode → filter (AVAudioUnitEQ) → delay (AVAudioUnitDelay) → output
+   (FX host only; mixer, voices, transport, pitch and loops are C++)
 ```
 
-Portrait lock (`UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait`) applies
-to iPhone only. iPad (`TARGETED_DEVICE_FAMILY = "1,2"`) allows landscape and gets a
-two-column mixer+decks layout in `RootView` (SK-047).
+## Threading
 
-## Audio engine notes
+- The render callback never allocates and never takes a lock. Swift posts `ParamCmd`s;
+  `Engine::render` drains them at the top of each quantum.
+- Clip loads allocate on the UI thread into the *inactive* `ClipBank` slot, then post a
+  `LoadClip` command; the render thread swaps the pointer.
+- `MixerStore.advanceDecks` runs on a 60 fps `CADisplayLink` and mirrors `SKClipInfo`
+  (playhead, playing, loop) back into the published `ChannelState`, so the UI never guesses.
+- Core MIDI packets arrive on a CoreMIDI thread and hop to the main actor before touching
+  state. Hot cue / loop / MIDI edits all funnel through `MixerStore`.
 
-- **C++ core (SK-001, done)**: `SideKitAudio` is a real static lib target with a
-  lock-free SPSC param queue and a render callback, pulled every quantum via
-  `AVAudioSourceNode` and mixed into `dryMixer` alongside the two decks. It renders
-  silence (hello callback / warmup) today — SK-004 moves real DSP into `Engine::render`.
-  Everything below (pitch, seek, loops, decode) still runs on the Swift/AVAudioEngine
-  side; the C++ core and the Swift deck engine are additive, not yet unified.
-- **Pitch/tempo (SK-012)**: `AVAudioUnitVarispeed` per channel — vinyl-style, pitch and
-  tempo move together, matching the classic DJ pitch-fader behavior the tickets describe
-  (SYNC sets a target *pitch*, not an independent time-stretch).
-- **Seek / hot cues / loops (SK-011/034)**: file decks track position as
-  `startFrame/sampleRate + elapsed*rate` and re-`scheduleSegment` on seek. Loop wrap is
-  detected on the 25 ms scheduler tick and re-seeks to the loop start — not sample-accurate
-  (a real DJ engine would double-buffer for a click-free wrap), but functionally correct
-  and quantizes to the beat grid via `Tempo.quantize`/`nearestAutoLoopLength`.
-- **Waveform peaks (SK-013)**: computed once at import time (400-bucket peak-abs
-  downsample) and cached to disk; the deck view further downsamples for display.
-- **BPM (SK-014)**: reads ID3/iTunes BPM tags first; falls back to a simple energy-based
-  onset detector + median inter-onset interval, folded into a 70–180 BPM range.
-- **Shared pure logic**: `SideKitCore/` is a small **standalone** Swift package that
-  holds the pure tempo/MIDI-map/snapshot math with real `swift test` coverage (SK-002)
-  — it is not linked into the Xcode target (to keep the hand-authored `.pbxproj` simple);
-  the app target carries an intentionally-mirrored copy (`SideKit/Tempo.swift` etc.) with
-  a comment pointing at the tested source.
+## Decks
 
-## What's simulated vs. real
+| | Imported file | Bundled demo (t1, t2, t6) | Demo without audio (t3–t5) |
+|---|---|---|---|
+| Source | ExtAudioFile → clip slot | 2 s WAV fixture → clip slot | C++ pattern sequencer |
+| Pitch | WSOLA ±8 % free / ±16 % Pro | same | changes step rate |
+| Seek / restart | frame-accurate, 5 ms fade | same | restart only |
+| Hot cues (SK-034) | seconds → `sk_engine_seek_frames` | same | — |
+| Loop (SK-034) | `sk_engine_set_loop`, beat-quantized in at base BPM | same | — |
+| Waveform | real min/max peaks (cached) | real | dashed placeholder |
+| BPM | tag → onset estimate (marked `*`) | metadata | metadata |
 
-| Area | Demo library tracks | User-imported tracks |
-|---|---|---|
-| Playback | Synthesized step patterns (no bundled audio asset ships yet — SK-036 gap) | Real `AVAudioFile` decode/playback |
-| Waveform | Procedural placeholder shape | Real cached peaks |
-| BPM | Fixed metadata | Tag read + onset fallback |
-| Pitch/loop/cues | UI works, but there's no real audio to loop/cue precisely | Fully real |
+Loop regions live in **clip** time, so loop length is computed at the track's base BPM —
+time-stretch changes how fast the read head moves, not where the beats sit in the file.
 
 ## Free / Pro split (SK-044/045/046)
 
-Free: Deck A, Filter + Delay FX, hardware link, library import. Pro (non-consumable,
-StoreKit 2): Deck B, hot cues, loops, all 6 FX, mixer scenes, ±16% pitch. Paywall only
-triggers on a gated action — never before first audio.
+Free: Deck A, Filter + Delay, hardware link, library import, hot cue 1.
+Pro (StoreKit 2 non-consumable `com.johnnyclem.SideKit.pro`): Deck B, hot cues 2–4,
+loops, all six FX, mixer scenes, ±16 % pitch. The paywall only appears on a gated action.
+`MixerStore.isPro` mirrors `StoreManager.isPro` so every view re-renders on purchase.
+
+## Shared pure logic
+
+`SideKitCore/` is a standalone SwiftPM package (tempo / beat math, MIDI map scaling,
+snapshot list ops) with `swift test` coverage. It is **not** linked into the Xcode target
+to keep the hand-authored `.pbxproj` simple; `SideKit/Tempo.swift`, `MIDIManager.swift`
+and `SnapshotStore.swift` carry intentionally mirrored copies with a comment pointing at
+the tested source. The C++ core has its own host test (`make -C SideKitAudio test`).
+
+## Layout
+
+iPhone is portrait-only and every tab is one screen (no inner scroll) except Library
+(track list) and Link (collapsible matrix / MIDI sections). iPad
+(`TARGETED_DEVICE_FAMILY = "1,2"`) allows landscape and shows the mixer in a left column
+with the selected tab on the right (SK-047).
+
+## Ticket trail
+
+SK-001 static lib + hello callback · SK-004 lock-free params, dual-voice 48 kHz render ·
+SK-010 ExtAudioFile decode + clip slots · SK-011 fades, frame-accurate seek, restart ·
+SK-012 WSOLA key-locked pitch · SK-013 cached peaks + 60 fps playhead · SK-014 BPM ·
+SK-015 interruption pause/resume · SK-034 hot cues + sample-accurate loops ·
+SK-035/036 persisted import library · SK-027 USB matrix · SK-040/041/042 Core MIDI ·
+SK-043 scenes · SK-044/045/046 StoreKit Pro · SK-047 iPad · SK-048 onboarding ·
+SK-049 accessibility pass · SK-050 diagnostics · SK-051 MetricKit.

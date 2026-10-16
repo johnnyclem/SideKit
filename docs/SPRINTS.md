@@ -127,7 +127,7 @@ S0 Foundation → S1 Deck A → S2 Mixer+USB → S3 FX+Library → S4 Hardware+P
 | SK-015 | Background audio session + route change handling | Audio | P0 | S | 3 | Eng | SK-004 |
 | SK-016 | Deck UI shell (SwiftUI) wired to engine | Decks | P0 | M | 5 | Eng | SK-003, SK-011 |
 
-#### SK-010 — File decode path (AAC/MP3/ALAC/WAV/AIFF → float PCM)
+#### SK-010 — File decode path (AAC/MP3/ALAC/WAV/AIFF → float PCM) ✅
 - **Epic:** Decks · **PRD:** PRD-03 · **Owner:** Audio eng
 - **Priority/Size/Points:** P0 / M / 5
 - **Depends on:** SK-004
@@ -136,7 +136,7 @@ S0 Foundation → S1 Deck A → S2 Mixer+USB → S3 FX+Library → S4 Hardware+P
   - Resample non-48k files offline on load
   - Error UI for unsupported codecs
 
-#### SK-011 — Deck A transport: play, pause, restart, seek
+#### SK-011 — Deck A transport: play, pause, restart, seek ✅
 - **Epic:** Decks · **PRD:** PRD-03 D-01 · **Owner:** Audio eng
 - **Priority/Size/Points:** P0 / M / 5
 - **Depends on:** SK-010
@@ -145,7 +145,7 @@ S0 Foundation → S1 Deck A → S2 Mixer+USB → S3 FX+Library → S4 Hardware+P
   - Seek lands within 1 frame of target
   - UI state mirrors engine within 1 render quantum
 
-#### SK-012 — Pitch ±8% time-stretch (WSOLA or phase vocoder v1)
+#### SK-012 — Pitch ±8% time-stretch (WSOLA or phase vocoder v1) ✅
 - **Epic:** Decks · **PRD:** PRD-03 D-02 · **Owner:** Audio eng
 - **Priority/Size/Points:** P0 / L / 8
 - **Depends on:** SK-011
@@ -154,7 +154,7 @@ S0 Foundation → S1 Deck A → S2 Mixer+USB → S3 FX+Library → S4 Hardware+P
   - CPU < 15% single deck on iPhone 15
   - Reset to 0% on double-tap
 
-#### SK-013 — Waveform overview + playhead (Deck A)
+#### SK-013 — Waveform overview + playhead (Deck A) ✅
 - **Epic:** Decks · **PRD:** PRD-03 D-05 · **Owner:** Eng
 - **Priority/Size/Points:** P0 / M / 5
 - **Depends on:** SK-010

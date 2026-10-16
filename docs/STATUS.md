@@ -1,96 +1,84 @@
-# Ticket status vs. SideKit_Sprint_Tickets.md
+# Ticket status vs. docs/SPRINTS.md
 
-Honest status after this PR. "Done" means real, working code shipped in this repo —
-none of it has been compiled or run (no macOS/Xcode toolchain in the environment that
-produced it), so treat it as *ready for a first Xcode build + device test pass*, not
-as verified. Legal, App Store Connect, physical-hardware QA, and marketing/business
-tickets were **not attempted** — they need a human with the relevant accounts, a real
-Sidekick unit, and legal authority, none of which an engineering PR can provide.
+Honest status after merging PR #5 (features) with `main` (C++ engine). "Done" means the
+code is in this repo and either host-tested (C++ core, `SideKitCore`) or compiled by CI's
+`xcodebuild` simulator build. Nothing below has been run on a device by the author of the
+merge — treat the Swift side as *compiles, needs a device pass*.
 
-Legend: ✅ done this PR · ➖ pre-existing (before this PR) · ◐ partial/UI-only stub · ⛔ not started (needs a human/account/hardware)
+Legend: ✅ done · ◐ partial / UI-only stub · ⛔ not started (needs a human, account or hardware)
 
 ## Sprint 0 — Foundation
 | Ticket | Status | Notes |
 |---|---|---|
-| SK-001 Xcode workspace | ➖ | Pre-existing; landed on `main` mid-PR as a real `SideKitAudio` C++ static lib (lock-free ring buffer, hello render callback) merged into this branch. |
-| SK-002 CI | ✅ | `.github/workflows/ci.yml`: SwiftLint, `swift test` on `SideKitCore`, `xcodebuild build`. Added the shared scheme this needed. |
-| SK-003 Design tokens | ➖ | Pre-existing `Theme.swift`. |
-| SK-004 AudioEngine skeleton | ◐ | Deck/mixer DSP is Swift/AVAudioEngine, not C++. The C++ `SideKitAudio` lib (SK-001) is wired in and pulled every render quantum, but only renders silence/hello callback — no real DSP moved into `Engine::render` yet. |
-| SK-005 App Store Connect shell | ⛔ | Needs a real Apple Developer / ASC account. |
-| SK-006 Trademark screen | ⛔ | Needs a human legal search; not something to fabricate. |
+| SK-001 Xcode workspace | ✅ | `SideKitAudio` C++ static lib linked into the app. |
+| SK-002 CI | ✅ | `.github/workflows/ci.yml`: C++ host tests (ubuntu), SwiftLint strict, `swift test` on `SideKitCore`, `xcodebuild` simulator build. |
+| SK-003 Design tokens | ✅ | `Theme.swift`. |
+| SK-004 AudioEngine skeleton | ✅ | Lock-free SPSC queue, 48 kHz no-alloc render, dual voices, EQ, XF, master — all in `Engine::render`. |
+| SK-005 App Store Connect shell | ⛔ | Needs the Apple Developer / ASC account. |
+| SK-006 Trademark screen | ⛔ | Needs a human legal search. |
 
 ## Sprint 1 — Decks Core
 | Ticket | Status | Notes |
 |---|---|---|
-| SK-010 File decode | ✅ | `LibraryStore.swift`, real `AVAudioFile` decode on import. |
-| SK-011 Deck A transport | ✅ | Real play/pause/seek/restart via `AudioEngine` file mode. Fade is `pause()`-based, not a verified ≤5ms equal-power ramp. |
-| SK-012 Pitch ±8% | ✅ | `AVAudioUnitVarispeed`, vinyl-style (pitch+tempo together). |
-| SK-013 Waveform | ✅ (imports) / ➖ (demo) | Real cached peaks for imported files; demo tracks still use the original procedural placeholder (no bundled audio asset). |
-| SK-014 BPM | ✅ (imports) / ➖ (demo) | ID3/iTunes tag read + onset-interval fallback. |
-| SK-015 Background audio + interruption | ✅ | Background mode + route-change UI were pre-existing; interruption pause/resume added this PR. |
-| SK-016 Deck UI shell | ➖/✅ | Pre-existing, extended with hot cues/loop UI this PR. |
+| SK-010 File decode | ✅ | `FileDecoder` (ExtAudioFile) → 48 kHz stereo float → C++ clip slots. Unsupported-codec banner. |
+| SK-011 Deck A transport | ✅ | 5 ms equal-power fades, frame-accurate seek, restart; playhead mirrored from the engine at 60 fps. |
+| SK-012 Pitch ±8 % | ✅ | WSOLA time-stretch, key locked; bit-transparent at 0 %. Engine range is ±16 % (Pro), free tier clamps to ±8 % in Swift. |
+| SK-013 Waveform | ✅ | C++ min/max peaks cached as `.skpeaks`, Canvas overview, drag-to-seek, loop band + cue ticks. |
+| SK-014 BPM | ✅ (imports) | ID3/iTunes tag read, else onset-interval estimate (shown with `*`). Demo tracks use metadata. |
+| SK-015 Background audio + interruption | ✅ | Background mode pre-existing; interruption pauses playing decks and resumes them on `.shouldResume`. Needs a device test with a real call. |
+| SK-016 Deck UI shell | ✅ | Single focused deck per screen with A/B switch, hot cue + loop row. |
 
 ## Sprint 2 — Mixer + USB
 | Ticket | Status | Notes |
 |---|---|---|
-| SK-020 Dual deck engine | ➖/✅ | Pre-existing pattern engine; file-mode dual playback added. |
-| SK-021 Channel strip DSP | ➖ | Pre-existing. |
-| SK-022 Compressor modes | ◐ | UI picker only — `comp`/`compAmount` are not wired to any DSP node. **Not implemented.** |
-| SK-023 Crossfader | ➖/✅ | Pre-existing; refactored onto tested `Tempo.equalPowerCrossfade`. |
-| SK-024 Meters | ➖ | Pre-existing. |
-| SK-025 USB Sidekick discovery | ◐ | Route/name-match detection is real software; **cannot be QA'd without a physical Sidekick.** |
-| SK-026 Mix modes | ◐ | Segmented control exists; switching mode does not yet change audio routing. **UI-only stub**, same as before this PR. |
-| SK-027 USB matrix | ✅ | Persisted per mode in `USBMatrixStore`, editable via menu. |
-| SK-028 Source selector | ◐ | Selector exists; "unavailable sources disabled with reason" not implemented. |
-| SK-029 Mixer tab UI | ➖ | Pre-existing. |
+| SK-020 Dual deck engine | ✅ | Two `ChannelVoice`s in C++. |
+| SK-021 Channel strip DSP | ✅ | Gain, 3-band EQ (DJ/Studio/Param multipliers), fader, mute in C++. |
+| SK-022 Compressor modes | ◐ | UI picker only — `comp` / `compAmount` reach no DSP. **Not implemented.** |
+| SK-023 Crossfader | ✅ | Equal-power in C++. |
+| SK-024 Meters | ✅ | Per-channel + master peak from `SKRenderInfo`. |
+| SK-025 USB Sidekick discovery | ◐ | Route / port-name match is real; **cannot be QA'd without a Sidekick.** |
+| SK-026 Mix modes | ◐ | Segmented control only; mode does not change routing. |
+| SK-027 USB matrix | ✅ | Per-mode roles persisted in `USBMatrixStore`, editable from Link (collapsed by default). |
+| SK-028 Source selector | ◐ | Selector exists; unavailable sources are not disabled with a reason. |
+| SK-029 Mixer tab UI | ✅ | One screen, scenes menu in the header. |
 
 ## Sprint 3 — FX + Library
 | Ticket | Status | Notes |
 |---|---|---|
-| SK-030 FX graph | ➖ | Pre-existing, all 6 FX. |
-| SK-031 Force pad | ➖/✅ | Pre-existing; accessibility + Reduce Motion added this PR. |
-| SK-032 Per-channel FX assign + series/parallel | ◐ | Toggles exist in state/UI; the FX bus is still a single shared filter/delay, not truly per-channel routable. |
-| SK-033 Deck B + Sync | ➖ | Pre-existing. |
-| SK-034 Hot cues + loops | ✅ | 4 cues, loop in + auto-length (½/2×), beat quantized, Pro-gated. |
-| SK-035 Library import | ✅ | Document picker, metadata, search, load A/B. |
-| SK-036 Demo tracks + empty states | ◐ | 6 demo tracks ship as metadata + synth patterns (no bundled royalty-free **audio asset**, same gap as before this PR); user-library empty state added this PR. |
-| SK-037 Demo mode without hardware | ➖ | Pre-existing — app is fully usable with no Sidekick. |
+| SK-030 FX graph | ✅ | Six FX on a shared AVAudioUnitEQ + AVAudioUnitDelay post-mix. |
+| SK-031 Force pad | ✅ | Accessibility + Reduce Motion aware. |
+| SK-032 Per-channel FX assign + series/parallel | ◐ | Toggles exist; FX bus is a single shared post-mix chain. |
+| SK-033 Deck B + Sync | ✅ | Deck B is Pro-gated. |
+| SK-034 Hot cues + loops | ✅ | 4 cues (frame-accurate seek), loop in quantized to the beat grid, ½ / 2× lengths, **wrapped on the render thread in C++** (tested). Pro-gated (cue 1 free). |
+| SK-035 Library import | ✅ | `.fileImporter`, copies to `Documents/Imports`, persisted index, remove. |
+| SK-036 Demo tracks + empty states | ◐ | t1/t2/t6 play 2 s bundled WAV fixtures; t3–t5 are synthesized patterns. No full-length royalty-free demo audio yet. Empty-library state added. |
+| SK-037 Demo mode without hardware | ✅ | |
 
 ## Sprint 4 — Hardware Brain + Pro
 | Ticket | Status | Notes |
 |---|---|---|
-| SK-040 Core MIDI + detection | ✅ | `MIDIManager.swift`. |
-| SK-041 Factory MIDI map | ✅ | Original map (`FactoryMIDIMap`), free once Sidekick MIDI is detected. |
-| SK-042 MIDI learn | ✅ | Per-target learn mode, persisted bindings. |
-| SK-043 Snapshots | ✅ | Save/recall, named, up to 16, Pro-gated. |
-| SK-044 StoreKit 2 Pro | ✅ | Code-complete non-consumable + offline restore. **Needs a real ASC product (`com.johnnyclem.SideKit.pro`) configured before it can actually purchase.** |
-| SK-045 Paywall UX | ✅ | Shown only on a gated action, never before first audio. |
-| SK-046 Pitch ±16% Pro gate | ✅ | Free capped at ±8%. |
-| SK-047 iPad layout | ✅ | Two-column landscape, `TARGETED_DEVICE_FAMILY = "1,2"`. |
-| SK-048 Onboarding | ✅ | Skippable, connect-hardware-or-load-demo. |
-| SK-049 Accessibility | ◐ | Meaningful VoiceOver label/value + Reduce Motion pass added; not a full audited pass on a real device with VoiceOver running. |
-| SK-050 Diagnostics export | ✅ | Share-sheet export, no PII beyond device model. |
-| SK-051 Crash/analytics | ✅ | On-device MetricKit only, opt-in, no third-party SDK. |
+| SK-040 Core MIDI + detection | ✅ | `MIDIManager`. Untested against hardware. |
+| SK-041 Factory MIDI map | ✅ | Original map, auto-applied when a Sidekick MIDI source appears. |
+| SK-042 MIDI learn | ✅ | Per-target learn, persisted. |
+| SK-043 Snapshots | ✅ | Save / recall / delete from the Mixer header menu, up to 16, Pro. |
+| SK-044 StoreKit 2 Pro | ✅ (code) | Needs the `com.johnnyclem.SideKit.pro` product in ASC (or a StoreKit configuration file for local testing). |
+| SK-045 Paywall UX | ✅ | Only on gated actions. |
+| SK-046 Pitch ±16 % Pro gate | ✅ | Engine clamp widened to ±16 (tested); free tier ±8. |
+| SK-047 iPad layout | ✅ | Mixer left, selected tab right, landscape allowed on iPad only. |
+| SK-048 Onboarding | ✅ | Skippable; "load a demo" plays t6. |
+| SK-049 Accessibility | ◐ | Labels / values / adjustable actions on all custom controls; not audited with VoiceOver on a device. |
+| SK-050 Diagnostics export | ✅ | Share sheet. |
+| SK-051 Crash / analytics | ✅ | Opt-in MetricKit only. |
 
-## Sprint 5 — Beta → App Store
-All ⛔ not started — every ticket here needs an Apple Developer/ASC account, a physical
-device for measurement, or design/video production:
-SK-052 (external TestFlight), SK-053 (screenshots/preview video/listing copy), SK-054
-(hosted privacy policy + support URL + compliance sign-off — `PrivacyInfo.xcprivacy` was
-added this PR as a head start), SK-055 (latency/thermal measurement on real hardware),
-SK-056 (App Review submission).
+## Sprint 5 / 6+
+All ⛔ — need an Apple Developer account, a physical device for latency/thermal
+measurement, design/video production, or business development.
 
-## Sprint 6+ — Growth
-All ⛔ not started: SK-060 Motion Control, SK-061 Tap-FX sequencer, SK-062 Apple Music
-access, SK-063 Playlists/iCloud sync, SK-064 content pack IAP, SK-065 Ableton Link,
-SK-066 TE partnership outreach (business development, not engineering).
-
-## Next steps for a human
-1. Open in Xcode, resolve any build errors (this was authored without a macOS toolchain
-   available to compile-check it).
-2. Get a real Sidekick unit for SK-025/026/041 hardware QA.
-3. Wire SK-022 (compressor DSP) and SK-026/032 (real per-mode/per-channel routing) —
-   flagged above as UI-only stubs.
-4. Bundle real royalty-free demo audio (SK-036) so the demo library isn't synthesized.
-5. Set up App Store Connect, the Pro IAP product, privacy/support pages, and run the
-   Sprint 5 business/compliance tickets.
+## Known gaps worth fixing next
+1. Compressor (SK-022), mix-mode routing (SK-026) and per-channel FX (SK-032) are UI-only.
+2. The WSOLA loop wrap restarts the stretcher at the loop start, which gives a short
+   window ramp at the seam. The linear (0 %) path is seamless.
+3. Pattern decks (t3–t5) cannot loop or hot-cue — they have no clip. Bundling full-length
+   demo audio (SK-036) makes this moot.
+4. Deck time display uses the decoded clip length, so the 2 s fixtures show as 0:02 —
+   intended, but it makes the demo library look thin until real demo audio ships.

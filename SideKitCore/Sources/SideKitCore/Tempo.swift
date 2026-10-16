@@ -2,7 +2,7 @@ import Foundation
 
 /// Pure tempo / beat math shared by the deck engine and mixer.
 /// Mirrored (not imported, to avoid Xcode SPM linkage) into the app target
-/// by `DeckPlayer.swift` and `MixerStore.swift` — keep both in sync when editing.
+/// as `SideKit/Tempo.swift` — keep both in sync when editing.
 public enum Tempo {
     /// Equal-power crossfade curve. `x` is 0 (full A) ... 1 (full B).
     /// Returns (gainA, gainB), each in 0...1, with gainA^2 + gainB^2 == 1.

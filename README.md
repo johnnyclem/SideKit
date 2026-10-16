@@ -1,8 +1,8 @@
 # SideKit
 
-Native **SwiftUI** iPhone/iPad app — the software brain for [Teenage Engineering EP-136 K.O. Sidekick](https://teenage.engineering/products/ep-136).
+Native **SwiftUI** iPhone / iPad app — the software brain for [Teenage Engineering EP-136 K.O. Sidekick](https://teenage.engineering/products/ep-136).
 
-Dual virtual decks, mixer, performance FX pad, library, MIDI control, and USB link surface.
+Dual virtual decks on a C++ audio core, mixer, performance FX pad, library, MIDI control and USB link surface.
 
 **Not an official Teenage Engineering product.** Descriptive companion for Sidekick hardware.
 
@@ -13,86 +13,87 @@ Dual virtual decks, mixer, performance FX pad, library, MIDI control, and USB li
 3. Select your **Team** under Signing & Capabilities (bundle id `com.johnnyclem.SideKit`)
 4. Run on an **iPhone** or **iPad** (USB-C, iOS 17+) or Simulator
 
-First tap Play to unlock the audio session. Demo library tracks still play synthesized
-patterns (no bundled audio asset ships yet); import your own files (Library → Import)
-for real playback.
+First tap Play to unlock the audio session. Deck A loads a bundled 48 kHz WAV fixture. Import your own WAV/AIFF/MP3/AAC/M4A/ALAC from Library.
 
 ## What's in this build
 
 | Tab | Native behavior |
 |---|---|
-| **Mixer** | Dual channel strips, gain / 3-band EQ knobs, faders, cue / mute / FX, DJ·Studio·Param EQ styles, crossfader, master / cue / phones, saved scenes (Pro) |
-| **Decks** | Real file playback for imported tracks (AVAudioFile + `AVAudioUnitVarispeed` pitch/tempo), waveform + seek, hot cues + loops (Pro), SYNC, beat-match |
-| **FX** | Six punch-in FX (filter, delay, tape, repeat, tremolo, siren — filter/delay free, rest Pro), force pad X/Y, depth, series/parallel |
-| **Library** | Import via document picker (AAC/MP3/ALAC/WAV/AIFF), cached waveform peaks, BPM tag read + onset fallback, 6 demo tracks, search, load → Deck A/B |
-| **Link** | USB route watch for Sidekick / EP-136 / class-compliant USB, mix mode, editable + persisted 8×4 matrix, Core MIDI detection + learn + factory map |
+| **Mixer** | Dual channel strips, gain / 3-band EQ knobs, faders, cue / mute / FX, compressor menu (UI only), DJ·Studio·Param EQ styles, crossfader, master, saved scenes (Pro) |
+| **Decks** | Focused deck with A/B switch, real waveform + 60 fps playhead, seek/restart with 5 ms fades, WSOLA key-locked pitch (±8 % free, ±16 % Pro), SYNC, 4 hot cues + beat-quantized loops (Pro) |
+| **FX** | Six punch-in FX (filter, delay free; tape, repeat, tremolo, siren Pro), force pad X/Y, depth, series/parallel |
+| **Library** | Files import, BPM tag read + onset estimate, persisted library, remove, search, load → Deck A/B, codec error banner |
+| **Link** | USB route watch for Sidekick / EP-136 / class-compliant USB, mix mode, editable 8×4 matrix, Core MIDI detection + factory map + learn, cue mix / phones |
 
-Plus: onboarding, StoreKit 2 Pro unlock (Deck B, hot cues/loops, all 6 FX, scenes, ±16%
-pitch), a diagnostics export sheet, opt-in on-device crash/analytics (MetricKit, no
-third-party SDK), and an iPad two-column landscape layout.
+Plus: first-run onboarding, StoreKit 2 Pro unlock, diagnostics export, opt-in on-device MetricKit crash counting, iPad two-column layout, interruption pause/resume.
 
-Audio is **AVAudioEngine** (48 kHz). See `docs/ARCHITECTURE.md` for the signal graph and
-`docs/STATUS.md` for an honest, ticket-by-ticket status against the sprint backlog —
-including what's still a UI-only stub (compressor DSP, mix-mode routing, per-channel FX
-bus) and what needs a human (App Store Connect, a physical Sidekick, legal/trademark,
-marketing assets).
+Audio is **AVAudioEngine** (48 kHz I/O + FX) pulling a C++ render callback. Decoded files play from double-buffered clip slots; demo patterns fill decks that have no audio.
 
-## C++ audio core (SK-001)
+## C++ audio core (`SideKitAudio`)
 
-`SideKitAudio` is a static library linked into the app.
+Static library linked into the app. Host check without Xcode: `make -C SideKitAudio test`.
 
 - C ABI in `SideKitAudio/include/sidekit_audio.h`
 - Lock-free SPSC command queue (`RingBuffer.hpp`) so the UI thread never touches the render callback
-- Hello render callback fills interleaved float32; silence by default
-- Swift `SKAudioBridge` + `AVAudioSourceNode` pull the callback every quantum
-- Host check (Linux/macOS, no Xcode): `make -C SideKitAudio test`
+- Dual-voice pattern sequencer + clip players + 3-band EQ + XF/master in `Engine::render`, no allocations
+- File clips: ExtAudioFile (device) / WAV+resample (host) → 48 kHz stereo float, double-buffered load
+- Transport: 5 ms equal-power fades, frame-accurate seek, restart, playhead mirrored to the UI
+- Pitch ±16 % WSOLA time-stretch (key lock); 0 % is bit-transparent
+- Loop region `[start, end)` in clip frames, wrapped on the render thread
+- Waveform overview from cached min/max peaks
 
-On first Play, the console should print:
+On first Play, the console prints:
 
-`SideKit C++ 0.1.0-sk001 warmup frames=64 t=64`
+`SideKit C++ 0.7.0-sk034 warmup frames=64 t=64 silent=true`
 
-Signing: **Automatic** / Apple Development. Select your Team in Xcode (Signing & Capabilities). `DEVELOPMENT_TEAM` is left blank on purpose.
+Signing: **Automatic** / Apple Development. `DEVELOPMENT_TEAM` is left blank on purpose.
 
-Shared scheme: `SideKit.xcodeproj/xcshareddata/xcschemes/SideKit.xcscheme` (Debug run, Release profile/archive). Builds `libSideKitAudio.a` first.
+Shared scheme: `SideKit.xcodeproj/xcshareddata/xcschemes/SideKit.xcscheme`. Builds `libSideKitAudio.a` first.
 
 ## Project layout
 
 ```
 SideKit.xcodeproj
 SideKit/
-  SideKitApp.swift        App entry
-  RootView.swift           Portrait/iPad chrome + tab bar
-  MixerStore.swift         Observable session state
-  AudioEngine.swift        AVAudioEngine: pattern voices + real file playback + C++ source node
-  SKAudioBridge.swift      Swift face of the SideKitAudio C++ static lib
-  LibraryStore.swift       Import, metadata, peaks cache, persistence
-  FileImportManager.swift  Document picker wrapper
-  Tempo.swift              Pure tempo/beat math (mirrors SideKitCore, tested there)
-  MIDIManager.swift        Core MIDI, factory map, learn mode
-  SnapshotStore.swift      Mixer scene save/recall
+  SideKitApp.swift         App entry
+  RootView.swift           iPhone / iPad chrome, tab bar, sheets
+  MixerStore.swift         Observable session state; the only thing that talks to the engine
+  AudioEngine.swift        AVAudioEngine host: C++ source node → filter → delay
+  SKAudioBridge.swift      Swift face of the C++ static lib
+  FileDecoder.swift        ExtAudioFile → 48 kHz stereo float
+  PeakCache.swift          .skpeaks sidecar via the C++ peaks API
+  LibraryStore.swift       Imported-file index + BPM analyzer
+  Tempo.swift              Beat math (mirrors SideKitCore, tested there)
+  MIDIManager.swift        Core MIDI, factory map, learn
+  SnapshotStore.swift      Mixer scenes
   StoreManager.swift       StoreKit 2 Pro unlock
-  USBMatrixStore.swift     USB 8x4 matrix persistence
+  USBMatrixStore.swift     USB 8×4 matrix persistence
   HardwareMonitor.swift    USB / Sidekick route watch
-  CrashReporting.swift     Opt-in on-device MetricKit
-  MixerView.swift          Channel strips + scenes
-  DecksView.swift          Dual decks, hot cues, loops
-  FXView.swift             Force pad
-  LibraryView.swift        Import + demo library
-  LinkView.swift           Device, matrix, MIDI
-  OnboardingView.swift     First-run flow
-  PaywallView.swift        Pro upsell
-  DiagnosticsView.swift    Diagnostics export
-  Controls.swift           Knobs, faders, meters
-  Theme.swift              Hardware-adjacent tokens
-SideKitAudio/               C++ static lib (SK-001)
+  CrashReporting.swift     Opt-in MetricKit
+  MixerView / DecksView / FXView / LibraryView / LinkView
+  WaveformView.swift       Canvas overview with loop band + cue ticks
+  OnboardingView / PaywallView / DiagnosticsView
+  Controls.swift, Theme.swift
+  Audio/*.wav              bundled decode fixtures
+SideKitAudio/              C++17 static lib
   include/sidekit_audio.h  C ABI
-  src/Engine.cpp           render callback
-  src/RingBuffer.hpp       SPSC param queue
+  src/Engine.cpp           render + command drain
+  src/Voice.hpp            clip player, loop, fades, pattern sequencer
+  src/Wsola.hpp            time-stretch
+  src/Decode.hpp           WAV + linear resample (host)
+  src/Peaks.hpp            min/max overview + sidecar
   tests/hello_render_test.cpp
-SideKitCore/               Standalone SwiftPM package: pure tempo/MIDI-map/snapshot
-                            math with `swift test` coverage (not linked into the Xcode
-                            target — see ARCHITECTURE.md)
+SideKitCore/               Standalone SwiftPM package: tempo / MIDI-map / snapshot math + tests
+docs/                      SPRINTS.md (backlog), STATUS.md (ticket status), ARCHITECTURE.md
 ```
+
+## Testing
+
+- `make -C SideKitAudio test` — C++ host tests: silence, fades, seek, WSOLA ratio + key lock, loops, peaks (Linux/macOS).
+- `cd SideKitCore && swift test` — tempo / crossfade math, MIDI scaling, snapshot list ops.
+- `xcodebuild build -project SideKit.xcodeproj -scheme SideKit -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO` — compile check.
+
+All of the above plus SwiftLint (strict) run in CI on every PR.
 
 ## Requirements
 
@@ -100,21 +101,8 @@ SideKitCore/               Standalone SwiftPM package: pure tempo/MIDI-map/snaps
 - iOS 17.0+
 - iPhone (portrait) or iPad (portrait + landscape)
 
-## Testing
-
-- `cd SideKitCore && swift test` — offline logic tests (tempo/crossfade math, MIDI CC
-  scaling, snapshot list ops).
-- `make -C SideKitAudio test` — C++ host test for the SideKitAudio hello render callback
-  (Linux/macOS, no Xcode needed).
-- `xcodebuild build -project SideKit.xcodeproj -scheme SideKit -destination 'platform=iOS Simulator,name=iPhone 15'`
-  — compile check, builds `libSideKitAudio.a` first. All three run in CI on every PR.
-
-Sprint tickets: `docs/SPRINTS.md`, status: `docs/STATUS.md`. **SK-001 is done.** Next
-for a human continuing this: SK-004 (move the demo voices into `Engine::render`), a
-first real Xcode build/device pass (this was authored without a macOS toolchain
-available), and the Sprint 5 App Store Connect / compliance tickets.
+Sprint tickets: `docs/SPRINTS.md`. Honest ticket-by-ticket status, including what is still UI-only: `docs/STATUS.md`.
 
 ## License
 
-Source in this repo is provided for the SideKit product. Teenage Engineering names and
-hardware are their trademarks.
+Source in this repo is provided for the SideKit product. Teenage Engineering names and hardware are their trademarks.
