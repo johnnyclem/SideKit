@@ -59,7 +59,7 @@ enum CompMode: String, CaseIterable, Identifiable, Codable {
 }
 
 enum FxId: String, CaseIterable, Identifiable, Codable {
-    case filter, delay, tape, repeat, tremolo, siren
+    case filter, delay, tape, `repeat`, tremolo, siren
     var id: String { rawValue }
     var short: String {
         switch self {
@@ -114,13 +114,17 @@ struct Track: Identifiable, Equatable {
     let id: String
     let title: String
     let artist: String
-    let bpm: Double
+    var bpm: Double
     let key: String
+    /// Seconds. For imported files this is refreshed from the decoded clip.
     var duration: Double
     let pattern: Pattern
-    var fileURL: URL? = nil
+    /// Non-nil for user-imported files (SK-010/SK-035); nil for demo tracks.
+    var fileURL: URL?
     var resampled: Bool = false
     var isImported: Bool = false
+    /// True when `bpm` came from onset analysis rather than a tag (SK-014).
+    var bpmIsEstimated: Bool = false
 }
 
 struct ChannelState: Equatable {
@@ -140,10 +144,21 @@ struct ChannelState: Equatable {
     var bpm: Double = 120
     var pitch: Double = 0
     var playing: Bool = false
-    var trackId: String? = nil
+    var trackId: String?
     var deckPos: Double = 0
 
+    /// Hot cues (SK-034): 4 slots, each an absolute clip position in seconds, or nil if unset.
+    var hotCues: [TimeInterval?] = [nil, nil, nil, nil]
+    /// Loop (SK-034): region in clip seconds; length in beats at the track's base BPM.
+    var loopActive: Bool = false
+    var loopStartSec: TimeInterval = 0
+    var loopLengthBeats: Double = 4
+
     var effectiveBpm: Double { bpm * (1 + pitch / 100) }
+
+    /// Loop length in clip seconds. Clip positions are in the file's own timeline, so this
+    /// uses the base BPM — the WSOLA time-stretch only changes how fast we read through it.
+    var loopLengthSec: TimeInterval { Tempo.beatsToSeconds(loopLengthBeats, bpm: bpm) }
 }
 
 enum DemoLibrary {

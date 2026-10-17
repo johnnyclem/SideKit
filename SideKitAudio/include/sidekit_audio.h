@@ -24,6 +24,9 @@ typedef struct SKClipInfo {
     int loaded;
     int playing;
     int fading;
+    int looping;
+    uint32_t loop_start;
+    uint32_t loop_end;
 } SKClipInfo;
 
 enum {
@@ -42,10 +45,16 @@ enum {
 /** Equal-power start/stop fade length. */
 enum { SK_FADE_MS = 5 };
 
-/** DJ pitch fader range (percent). Time-stretch, key locked. */
-enum { SK_PITCH_MIN = -8, SK_PITCH_MAX = 8 };
+/** DJ pitch fader range (percent). Time-stretch, key locked.
+ *  Engine hard limit is ±16 (Pro). The free tier clamps to ±8 in Swift. */
+enum { SK_PITCH_MIN = -16, SK_PITCH_MAX = 16, SK_PITCH_FREE_MAX = 8 };
 
 void sk_engine_set_pitch(SKEngine *engine, uint32_t ch, float percent);
+
+/** Sample-accurate loop region [start_frame, end_frame) in clip frames.
+ *  Wraps on the render thread; disabled when `enabled` is 0 or the region is < 64 frames.
+ *  If the playhead is outside the region when enabled, it jumps to start_frame. */
+void sk_engine_set_loop(SKEngine *engine, uint32_t ch, int enabled, uint32_t start_frame, uint32_t end_frame);
 
 enum { SK_PEAK_BINS = 320 };
 

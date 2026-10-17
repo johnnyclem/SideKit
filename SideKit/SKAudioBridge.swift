@@ -83,6 +83,10 @@ final class SKAudioBridge {
         sk_engine_set_pitch(engine, ch, percent)
     }
 
+    func setLoop(ch: UInt32, enabled: Bool, startFrame: UInt32, endFrame: UInt32) {
+        sk_engine_set_loop(engine, ch, enabled ? 1 : 0, startFrame, endFrame)
+    }
+
     func warmup() -> SKRenderInfo {
         var scratch = [Float](repeating: 0, count: 64 * 2)
         scratch.withUnsafeMutableBufferPointer { ptr in

@@ -1,10 +1,19 @@
 import AVFoundation
 import Foundation
 
-/// I/O + FX host. Mixer, voices, and transport live in C++ (`SideKitAudio`).
-/// Swift only posts params over the lock-free SPSC queue.
+/// I/O + FX host. Mixer, voices, transport, pitch and loops live in C++ (`SideKitAudio`).
+/// Swift only posts params over the lock-free SPSC queue and reads back `SKClipInfo`.
 final class AudioEngine {
     static let shared = AudioEngine()
+
+    enum InterruptionEvent {
+        case began
+        case ended(shouldResume: Bool)
+    }
+
+    /// SK-015: fired on the main queue when the audio session is interrupted (call, Siri,
+    /// another app taking the route). `MixerStore` owns what to pause and what to resume.
+    var onInterruption: ((InterruptionEvent) -> Void)?
 
     var cppCoreVersion: String { cppBridge.version }
 
@@ -14,6 +23,7 @@ final class AudioEngine {
 
     private var format: AVAudioFormat!
     private var started = false
+    private var interruptionObserver: NSObjectProtocol?
 
     private let cppBridge = SKAudioBridge.shared
     /// Preallocated scratch — never resized on the audio thread.
@@ -22,6 +32,7 @@ final class AudioEngine {
 
     private init() {
         configureGraph()
+        observeInterruptions()
     }
 
     func unlock() async {
@@ -107,8 +118,26 @@ final class AudioEngine {
         cppBridge.seekFrames(ch: UInt32(ch), frame: frame)
     }
 
+    /// Frame-accurate seek expressed in clip seconds (hot cues, SK-034).
+    func seekSeconds(ch: Int, seconds: Double) {
+        let frame = UInt32(max(0, seconds) * 48_000)
+        cppBridge.seekFrames(ch: UInt32(ch), frame: frame)
+    }
+
     func restart(ch: Int) {
         cppBridge.restart(ch: UInt32(ch))
+    }
+
+    /// Sample-accurate loop region in clip seconds (SK-034). The wrap happens on the render
+    /// thread; passing `enabled: false` clears it.
+    func setLoop(ch: Int, enabled: Bool, startSec: Double, lengthSec: Double) {
+        guard enabled, lengthSec > 0 else {
+            cppBridge.setLoop(ch: UInt32(ch), enabled: false, startFrame: 0, endFrame: 0)
+            return
+        }
+        let start = UInt32(max(0, startSec) * 48_000)
+        let end = UInt32(max(0, startSec + lengthSec) * 48_000)
+        cppBridge.setLoop(ch: UInt32(ch), enabled: true, startFrame: start, endFrame: end)
     }
 
     func clipPlayhead(ch: Int) -> (pos: Double, duration: Double)? {
@@ -169,6 +198,39 @@ final class AudioEngine {
             delay.wetDryMix = 0
         }
     }
+
+    // MARK: - Interruptions (SK-015)
+
+    private func observeInterruptions() {
+        interruptionObserver = NotificationCenter.default.addObserver(
+            forName: AVAudioSession.interruptionNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] note in
+            guard let self,
+                  let info = note.userInfo,
+                  let typeValue = info[AVAudioSessionInterruptionTypeKey] as? UInt,
+                  let type = AVAudioSession.InterruptionType(rawValue: typeValue) else { return }
+            switch type {
+            case .began:
+                self.onInterruption?(.began)
+            case .ended:
+                let optionsValue = info[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
+                let shouldResume = AVAudioSession.InterruptionOptions(rawValue: optionsValue).contains(.shouldResume)
+                if shouldResume {
+                    try? AVAudioSession.sharedInstance().setActive(true)
+                    if self.engine.isRunning == false {
+                        try? self.engine.start()
+                    }
+                }
+                self.onInterruption?(.ended(shouldResume: shouldResume))
+            @unknown default:
+                break
+            }
+        }
+    }
+
+    // MARK: - Graph
 
     private func configureGraph() {
         format = AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 2)

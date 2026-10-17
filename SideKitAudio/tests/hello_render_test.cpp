@@ -60,8 +60,8 @@ static float goertzel(const float *x, int n, int stride, float freq, float sr) {
 
 int main() {
     const char *ver = sk_engine_version();
-    if (!ver || std::strstr(ver, "sk013") == nullptr) {
-        return fail("version should be sk013");
+    if (!ver || std::strstr(ver, "sk034") == nullptr) {
+        return fail("version should be sk034");
     }
 
     SKEngine *eng = sk_engine_create(48000.0, 2);
@@ -410,6 +410,98 @@ int main() {
             return fail("peaks cache mismatch");
         }
         std::remove(cache);
+    }
+
+    // 18. SK-034: sample-accurate loop region, linear path (0% pitch).
+    {
+        std::vector<float> loopTone;
+        fillSine(loopTone, 48000, 2, 48000.0, 440.f, 0.5f);
+        if (!sk_engine_load_clip(eng, 1, loopTone.data(), 48000, 2)) {
+            return fail("load loop clip");
+        }
+        sk_engine_set_pitch(eng, 1, 0.f);
+        sk_engine_set_channel_mix(eng, 1, 0.f, 1.f, 0);
+        sk_engine_set_master(eng, 1.f);
+        sk_engine_set_crossfader(eng, 0.f);
+        sk_engine_set_loop(eng, 1, 1, 1000, 3400);
+        sk_engine_set_transport(eng, 1, 1, 0, 120.f);
+        sk_engine_render(eng, stretch.data(), 512); // consume + fade-in
+        SKClipInfo li = sk_engine_clip_info(eng, 1);
+        if (!li.looping || li.loop_start != 1000 || li.loop_end != 3400) {
+            return fail("loop info not reflected");
+        }
+        if (li.playhead < 1000 || li.playhead >= 3400) {
+            std::fprintf(stderr, "FAIL: loop enable did not place playhead in region (%u)\n", li.playhead);
+            return 1;
+        }
+        float minPeak = 1.f;
+        for (int blk = 0; blk < 40; ++blk) { // 40 × 480 = 20480 frames ≫ loop length 2400
+            sk_engine_render(eng, stretch.data(), 480);
+            li = sk_engine_clip_info(eng, 1);
+            if (li.playhead < 1000 || li.playhead >= 3400) {
+                std::fprintf(stderr, "FAIL: linear loop escaped region at blk %d playhead=%u\n", blk, li.playhead);
+                return 1;
+            }
+            if (!li.playing) {
+                return fail("linear loop stopped playing");
+            }
+            minPeak = std::min(minPeak, sk_engine_last_info(eng).peak_ch1);
+        }
+        if (minPeak < 0.1f) {
+            std::fprintf(stderr, "FAIL: linear loop went quiet minPeak=%f\n", minPeak);
+            return 1;
+        }
+
+        // Loop through WSOLA (+8%) also stays in region and keeps producing audio.
+        sk_engine_set_pitch(eng, 1, 8.f);
+        sk_engine_render(eng, stretch.data(), 2048);
+        minPeak = 1.f;
+        for (int blk = 0; blk < 40; ++blk) {
+            sk_engine_render(eng, stretch.data(), 480);
+            li = sk_engine_clip_info(eng, 1);
+            if (li.playhead + 1100 < 1000 || li.playhead >= 3400 + 1100) { // allow one WSOLA window of slack
+                std::fprintf(stderr, "FAIL: wsola loop escaped region at blk %d playhead=%u\n", blk, li.playhead);
+                return 1;
+            }
+            if (!li.playing) {
+                return fail("wsola loop stopped playing");
+            }
+            minPeak = std::min(minPeak, sk_engine_last_info(eng).peak_ch1);
+        }
+        if (minPeak < 0.05f) {
+            std::fprintf(stderr, "FAIL: wsola loop went quiet minPeak=%f\n", minPeak);
+            return 1;
+        }
+
+        // Disable: playhead runs past the old loop end.
+        sk_engine_set_pitch(eng, 1, 0.f);
+        sk_engine_set_loop(eng, 1, 0, 0, 0);
+        sk_engine_render(eng, stretch.data(), 4800);
+        li = sk_engine_clip_info(eng, 1);
+        if (li.looping || li.playhead < 3400) {
+            std::fprintf(stderr, "FAIL: loop disable playhead=%u looping=%d\n", li.playhead, li.looping);
+            return 1;
+        }
+
+        // Degenerate region (< 64 frames) is rejected.
+        sk_engine_set_loop(eng, 1, 1, 5000, 5010);
+        sk_engine_render(eng, stretch.data(), 64);
+        if (sk_engine_clip_info(eng, 1).looping) {
+            return fail("degenerate loop accepted");
+        }
+
+        // ±16% pitch clamp (Pro range) is honoured by the engine.
+        sk_engine_set_pitch(eng, 1, 16.f);
+        sk_engine_seek_frames(eng, 1, 6000);
+        sk_engine_render(eng, stretch.data(), 2048);
+        const uint32_t p16a = sk_engine_clip_info(eng, 1).playhead;
+        sk_engine_render(eng, stretch.data(), 4800);
+        const uint32_t p16b = sk_engine_clip_info(eng, 1).playhead;
+        const float r16 = static_cast<float>(p16b - p16a) / 4800.f;
+        if (r16 < 1.10f || r16 > 1.22f) {
+            std::fprintf(stderr, "FAIL: +16%% playhead ratio=%f\n", r16);
+            return 1;
+        }
     }
 
     sk_engine_destroy(eng);

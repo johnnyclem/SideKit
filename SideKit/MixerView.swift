@@ -5,7 +5,8 @@ struct MixerView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
+            HStack(spacing: 8) {
+                ScenesMenu()
                 Spacer()
                 SegmentedPills(
                     options: EqStyle.allCases,
@@ -37,6 +38,7 @@ struct MixerView: View {
                 Slider(value: $store.crossfader, in: 0...1)
                     .tint(SKTheme.accent)
                     .onChange(of: store.crossfader) { _, _ in store.pushAudio() }
+                    .accessibilityLabel("Crossfader")
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
@@ -47,6 +49,7 @@ struct MixerView: View {
                 Slider(value: $store.master, in: 0...1)
                     .tint(SKTheme.accent)
                     .onChange(of: store.master) { _, _ in store.pushAudio() }
+                    .accessibilityLabel("Master level")
                 Text("\(Int(store.master * 100))")
                     .font(.system(size: 10, design: .monospaced))
                     .foregroundStyle(SKTheme.muted)
@@ -58,6 +61,88 @@ struct MixerView: View {
             .padding(.vertical, 8)
             .skPanel()
         }
+    }
+}
+
+/// Mixer scenes save/recall (SK-043), Pro-gated (SK-046). Compact menu so the Mixer tab
+/// stays a single screen.
+struct ScenesMenu: View {
+    @EnvironmentObject private var store: MixerStore
+    @ObservedObject private var snapshots = SnapshotStore.shared
+    @State private var naming = false
+    @State private var newName = ""
+
+    var body: some View {
+        Group {
+            if store.isPro {
+                Menu {
+                    if snapshots.snapshots.isEmpty {
+                        Text("No saved scenes")
+                    } else {
+                        ForEach(snapshots.snapshots) { snap in
+                            Button(snap.name) { store.recallSnapshot(snap) }
+                        }
+                    }
+                    Divider()
+                    Button {
+                        newName = ""
+                        naming = true
+                    } label: {
+                        Label("Save current as scene…", systemImage: "plus")
+                    }
+                    if !snapshots.snapshots.isEmpty {
+                        Menu("Delete") {
+                            ForEach(snapshots.snapshots) { snap in
+                                Button(role: .destructive) {
+                                    snapshots.remove(id: snap.id)
+                                } label: {
+                                    Text(snap.name)
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    label
+                }
+            } else {
+                Button {
+                    store.showPaywall = true
+                } label: {
+                    label
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .accessibilityLabel("Mixer scenes")
+        .alert("Save scene", isPresented: $naming) {
+            TextField("Scene name", text: $newName)
+            Button("Save") {
+                let name = newName.trimmingCharacters(in: .whitespaces)
+                store.saveSnapshot(named: name.isEmpty ? "Scene \(snapshots.snapshots.count + 1)" : name)
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Saves gains, EQ, faders, crossfader, master and FX depth.")
+        }
+    }
+
+    private var label: some View {
+        HStack(spacing: 5) {
+            Image(systemName: store.isPro ? "square.stack.3d.down.right" : "lock.fill")
+                .font(.system(size: 10, weight: .semibold))
+            Text(store.isPro ? "SCENES" : "SCENES · PRO")
+                .font(.system(size: 10, weight: .semibold))
+                .tracking(0.6)
+        }
+        .foregroundStyle(SKTheme.muted)
+        .padding(.horizontal, 10)
+        .frame(height: 28)
+        .background(SKTheme.inset)
+        .clipShape(RoundedRectangle(cornerRadius: SKTheme.radiusSM, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: SKTheme.radiusSM, style: .continuous)
+                .stroke(SKTheme.border, lineWidth: 1)
+        )
     }
 }
 
@@ -103,7 +188,8 @@ struct ChannelStripView: View {
                         .font(.system(size: 10, design: .monospaced))
                         .foregroundStyle(SKTheme.subtle)
                 }
-                .frame(width: 44, maxHeight: .infinity)
+                .frame(width: 44)
+                .frame(maxHeight: .infinity)
             }
             .frame(maxHeight: .infinity)
 

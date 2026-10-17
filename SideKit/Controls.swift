@@ -54,7 +54,7 @@ struct KnobView: View {
 
 struct VerticalFader: View {
     @Binding var value: Double
-    var height: CGFloat? = nil
+    var height: CGFloat?
 
     var body: some View {
         GeometryReader { geo in
@@ -80,6 +80,17 @@ struct VerticalFader: View {
             )
         }
         .frame(height: height)
+        .accessibilityElement()
+        .accessibilityLabel("Fader")
+        .accessibilityValue("\(Int(value * 100)) percent")
+        .accessibilityAdjustableAction { direction in
+            let step = 0.05
+            switch direction {
+            case .increment: value = min(1, value + step)
+            case .decrement: value = max(0, value - step)
+            @unknown default: break
+            }
+        }
     }
 }
 
@@ -137,6 +148,8 @@ struct SegmentedPills<T: Hashable>: View {
                         .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(opt[keyPath: title])
+                .accessibilityAddTraits(selection == opt ? .isSelected : [])
             }
         }
         .padding(2)
@@ -181,6 +194,8 @@ struct ToggleChip: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(label)
+        .accessibilityValue(isOn ? "On" : "Off")
     }
 }
 

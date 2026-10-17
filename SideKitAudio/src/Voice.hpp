@@ -59,6 +59,10 @@ struct ChannelVoice {
     bool wsola_on = false;
     Wsola wsola{};
 
+    bool loop_on = false;
+    uint32_t loop_start = 0;
+    uint32_t loop_end = 0;
+
     int fade_dir = 0; // +1 in, -1 out, 0 idle
     uint32_t fade_i = 0;
     uint32_t fade_len = 240;
@@ -121,7 +125,7 @@ struct ChannelVoice {
     }
 
     void setPitch(float percent) {
-        pitch_pct = std::clamp(percent, -8.f, 8.f);
+        pitch_pct = std::clamp(percent, static_cast<float>(SK_PITCH_MIN), static_cast<float>(SK_PITCH_MAX));
         if (std::fabs(pitch_pct) < 0.02f) {
             pitch_pct = 0.f;
             rate_z = 1.f;
@@ -135,6 +139,9 @@ struct ChannelVoice {
         clip_frames = frames;
         clip_pos = 0;
         has_clip = pcm != nullptr && frames > 0;
+        loop_on = false;
+        loop_start = 0;
+        loop_end = 0;
         fade_dir = 0;
         fade_i = 0;
         wsola_on = false;
@@ -150,6 +157,45 @@ struct ChannelVoice {
         clip_frames = 0;
         clip_pos = 0;
         has_clip = false;
+        loop_on = false;
+        loop_start = 0;
+        loop_end = 0;
+    }
+
+    /// Loop region in clip frames, half-open [start, end). Playhead outside the region
+    /// at enable time jumps to `start` (seek semantics: fade-in if playing).
+    void setLoop(bool enabled, uint32_t start, uint32_t end) {
+        if (!has_clip || clip_frames == 0 || !enabled) {
+            loop_on = false;
+            return;
+        }
+        if (end > clip_frames) {
+            end = clip_frames;
+        }
+        if (start >= clip_frames || end <= start || end - start < 64) {
+            loop_on = false;
+            return;
+        }
+        loop_start = start;
+        loop_end = end;
+        loop_on = true;
+        if (clip_pos < static_cast<double>(start) || clip_pos >= static_cast<double>(end)) {
+            seekFrames(start);
+        }
+    }
+
+    /// Wrap `clip_pos` back into the loop region. Returns true if a wrap happened.
+    bool wrapLoop() {
+        if (!loop_on || clip_pos < static_cast<double>(loop_end)) {
+            return false;
+        }
+        const double len = static_cast<double>(loop_end - loop_start);
+        double over = clip_pos - static_cast<double>(loop_end);
+        if (over >= len) {
+            over = 0;
+        }
+        clip_pos = static_cast<double>(loop_start) + over;
+        return true;
     }
 
     uint32_t playheadFrame() const {
@@ -346,6 +392,7 @@ struct ChannelVoice {
         const float l = clip_pcm[i0 * 2] + (clip_pcm[i1 * 2] - clip_pcm[i0 * 2]) * frac;
         const float r = clip_pcm[i0 * 2 + 1] + (clip_pcm[i1 * 2 + 1] - clip_pcm[i0 * 2 + 1]) * frac;
         clip_pos += inc;
+        wrapLoop();
         return (l + r) * 0.5f;
     }
 
@@ -366,6 +413,12 @@ struct ChannelVoice {
         }
         const float s = wsola.pull(clip_pcm, clip_frames, rate_z);
         clip_pos = wsola.playhead();
+        if (wrapLoop()) {
+            // WSOLA keeps its own timeline; restart it at the loop start. The Hann
+            // window gives a short (~kHa frames) ramp at the wrap instead of a click.
+            wsola.reset(clip_pos);
+            return s;
+        }
         if (wsola.ended || clip_pos >= clip_frames) {
             clip_pos = clip_frames;
             want_playing = false;
@@ -380,7 +433,7 @@ struct ChannelVoice {
         sr_ = sr;
         fade_len = fadeFramesFor(sr);
 
-        if (has_clip && playing && fade_dir == 0 && clip_frames > 0) {
+        if (has_clip && playing && fade_dir == 0 && clip_frames > 0 && !loop_on) {
             const auto remain = clip_frames - playheadFrame();
             const auto need = static_cast<uint32_t>(std::lround(static_cast<double>(fade_len) * std::max(0.5f, rate_z)));
             if (remain > 0 && remain <= need) {

@@ -19,24 +19,31 @@ struct FXView: View {
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 6) {
                 ForEach(FxId.allCases) { item in
+                    let locked = !store.isPro && !MixerStore.freeFx.contains(item)
                     Button {
-                        store.fx = item
-                        store.pushFx()
+                        store.selectFx(item)
                     } label: {
-                        Text(item.short)
-                            .font(.system(size: 11, weight: .semibold))
-                            .tracking(0.6)
-                            .foregroundStyle(store.fx == item ? SKTheme.accentFg : SKTheme.muted)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 40)
-                            .background(store.fx == item ? SKTheme.accent : SKTheme.panel)
-                            .clipShape(RoundedRectangle(cornerRadius: SKTheme.radiusSM, style: .continuous))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: SKTheme.radiusSM, style: .continuous)
-                                    .stroke(store.fx == item ? SKTheme.accent.opacity(0.5) : SKTheme.border, lineWidth: 1)
-                            )
+                        HStack(spacing: 3) {
+                            Text(item.short)
+                                .font(.system(size: 11, weight: .semibold))
+                                .tracking(0.6)
+                            if locked {
+                                Image(systemName: "lock.fill").font(.system(size: 8))
+                            }
+                        }
+                        .foregroundStyle(store.fx == item ? SKTheme.accentFg : (locked ? SKTheme.subtle : SKTheme.muted))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 40)
+                        .background(store.fx == item ? SKTheme.accent : SKTheme.panel)
+                        .clipShape(RoundedRectangle(cornerRadius: SKTheme.radiusSM, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: SKTheme.radiusSM, style: .continuous)
+                                .stroke(store.fx == item ? SKTheme.accent.opacity(0.5) : SKTheme.border, lineWidth: 1)
+                        )
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(item.label + (locked ? ", Pro feature" : ""))
+                    .accessibilityAddTraits(store.fx == item ? .isSelected : [])
                 }
             }
 
@@ -59,6 +66,7 @@ struct FXView: View {
                 Slider(value: $store.fxDepth, in: 0...1)
                     .tint(SKTheme.accent)
                     .onChange(of: store.fxDepth) { _, _ in store.pushFx() }
+                    .accessibilityLabel("FX depth")
                 Button {
                     store.fxSeries.toggle()
                 } label: {
@@ -75,6 +83,8 @@ struct FXView: View {
                         )
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("FX routing")
+                .accessibilityValue(store.fxSeries ? "Series" : "Parallel")
             }
         }
     }
@@ -86,6 +96,8 @@ struct ForcePad: View {
     var active: Bool
     var caption: String
     var onChange: (_ x: Double, _ y: Double, _ down: Bool) -> Void
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         GeometryReader { geo in
@@ -116,13 +128,13 @@ struct ForcePad: View {
                     .stroke(active ? SKTheme.accent : SKTheme.muted, lineWidth: 2)
                     .background(Circle().fill(active ? SKTheme.accent.opacity(0.3) : SKTheme.fg.opacity(0.08)))
                     .frame(width: 20, height: 20)
-                    .scaleEffect(active ? 1.1 : 1)
+                    .scaleEffect(active && !reduceMotion ? 1.1 : 1)
                     .position(x: geo.size.width * x, y: geo.size.height * (1 - y))
             }
             .clipShape(RoundedRectangle(cornerRadius: SKTheme.radiusMD, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: SKTheme.radiusMD, style: .continuous)
-                    .stroke(SKTheme.borderStrong, lineWidth: 1)
+                    .stroke(active ? SKTheme.accent.opacity(0.6) : SKTheme.borderStrong, lineWidth: 1)
             )
             .gesture(
                 DragGesture(minimumDistance: 0)
@@ -135,6 +147,17 @@ struct ForcePad: View {
                         onChange(x, y, false)
                     }
             )
+            .accessibilityElement()
+            .accessibilityLabel("Force pad, \(caption)")
+            .accessibilityValue("X \(Int(x * 100)) percent, Y \(Int(y * 100)) percent, \(active ? "engaged" : "standby")")
+            .accessibilityAdjustableAction { direction in
+                let step = 0.05
+                switch direction {
+                case .increment: onChange(min(1, x + step), y, active)
+                case .decrement: onChange(max(0, x - step), y, active)
+                @unknown default: break
+                }
+            }
         }
     }
 }

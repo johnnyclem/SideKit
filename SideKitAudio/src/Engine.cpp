@@ -18,8 +18,9 @@ float equalPower(float x) {
 }
 } // namespace
 
-ParamCmd makeCmd(ParamId id, uint8_t ch, float a = 0, float b = 0, float c = 0, float d = 0, uint32_t u = 0) {
-    return ParamCmd{id, ch, a, b, c, d, u};
+ParamCmd makeCmd(ParamId id, uint8_t ch, float a = 0, float b = 0, float c = 0, float d = 0, uint32_t u = 0,
+                 uint32_t v = 0) {
+    return ParamCmd{id, ch, a, b, c, d, u, v};
 }
 
 Engine::Engine(double sample_rate, uint32_t channels)
@@ -66,6 +67,9 @@ SKClipInfo Engine::clipInfo(uint8_t ch) const {
     info.loaded = v.has_clip ? 1 : 0;
     info.playing = v.want_playing ? 1 : 0;
     info.fading = v.fade_dir != 0 ? 1 : 0;
+    info.looping = v.loop_on ? 1 : 0;
+    info.loop_start = v.loop_on ? v.loop_start : 0;
+    info.loop_end = v.loop_on ? v.loop_end : 0;
     return info;
 }
 
@@ -138,6 +142,9 @@ void Engine::consumeCommands() {
             break;
         case ParamId::Pitch:
             voice(cmd.ch).setPitch(cmd.a);
+            break;
+        case ParamId::Loop:
+            voice(cmd.ch).setLoop(cmd.a > 0.5f, cmd.u, cmd.v);
             break;
         }
     }
@@ -212,7 +219,7 @@ uint32_t Engine::render(float *interleaved, uint32_t frames) {
 
 extern "C" {
 
-const char *sk_engine_version(void) { return "0.6.0-sk013"; }
+const char *sk_engine_version(void) { return "0.7.0-sk034"; }
 
 SKEngine *sk_engine_create(double sample_rate, uint32_t channels) {
     auto *engine = new (std::nothrow) sidekit::Engine(sample_rate, channels);
@@ -297,7 +304,7 @@ void sk_engine_clear_clip(SKEngine *engine, uint32_t ch) {
 
 SKClipInfo sk_engine_clip_info(const SKEngine *engine, uint32_t ch) {
     if (!engine) {
-        return SKClipInfo{0, 0, 2, 0, 0, 0};
+        return SKClipInfo{0, 0, 2, 0, 0, 0, 0, 0, 0};
     }
     return reinterpret_cast<const sidekit::Engine *>(engine)->clipInfo(static_cast<uint8_t>(ch));
 }
@@ -324,6 +331,13 @@ void sk_engine_set_pitch(SKEngine *engine, uint32_t ch, float percent) {
     if (engine) {
         reinterpret_cast<sidekit::Engine *>(engine)->post(
             sidekit::makeCmd(sidekit::ParamId::Pitch, static_cast<uint8_t>(ch), percent));
+    }
+}
+
+void sk_engine_set_loop(SKEngine *engine, uint32_t ch, int enabled, uint32_t start_frame, uint32_t end_frame) {
+    if (engine) {
+        reinterpret_cast<sidekit::Engine *>(engine)->post(sidekit::makeCmd(
+            sidekit::ParamId::Loop, static_cast<uint8_t>(ch), enabled ? 1.f : 0.f, 0, 0, 0, start_frame, end_frame));
     }
 }
 

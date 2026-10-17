@@ -54,6 +54,7 @@ enum class ParamId : uint8_t {
     SeekFrames = 12,
     Restart = 13,
     Pitch = 14,
+    Loop = 15,
 };
 
 struct ParamCmd {
@@ -64,6 +65,7 @@ struct ParamCmd {
     float c;
     float d;
     uint32_t u;
+    uint32_t v;
 };
 
 } // namespace sidekit
